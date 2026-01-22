@@ -103,8 +103,8 @@ type WSHub struct {
 var hub = &WSHub{
 	clients:    make(map[*WSClient]bool),
 	broadcast:  make(chan WSMessage, 100),
-	register:   make(chan *WSClient),
-	unregister: make(chan *WSClient),
+	register:   make(chan *WSClient, 100),
+	unregister: make(chan *WSClient, 100),
 }
 
 func (h *WSHub) run() {

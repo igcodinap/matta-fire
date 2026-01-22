@@ -1,8 +1,10 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"math"
 	"net/http"
 	"sync"
@@ -108,9 +110,15 @@ func (w *WindGridCache) GetWindForLocation(lat, lon float64) (speed, direction f
 
 // FetchWindGrid fetches wind data for all Chilean monitoring points
 func FetchWindGrid() error {
+	// Create a timeout context for the entire operation
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
 	var points []WindPoint
 	var mu sync.Mutex
 	var wg sync.WaitGroup
+
+	client := &http.Client{Timeout: 10 * time.Second}
 
 	for _, point := range ChileanMonitoringPoints {
 		wg.Add(1)
@@ -122,11 +130,23 @@ func FetchWindGrid() error {
 				lat, lon,
 			)
 
-			resp, err := http.Get(url)
+			req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 			if err != nil {
+				log.Printf("Wind fetch request error for (%.2f, %.2f): %v", lat, lon, err)
+				return
+			}
+
+			resp, err := client.Do(req)
+			if err != nil {
+				log.Printf("Wind fetch error for (%.2f, %.2f): %v", lat, lon, err)
 				return
 			}
 			defer resp.Body.Close()
+
+			if resp.StatusCode != http.StatusOK {
+				log.Printf("Wind fetch bad status for (%.2f, %.2f): %d", lat, lon, resp.StatusCode)
+				return
+			}
 
 			var data struct {
 				Current struct {
@@ -136,6 +156,7 @@ func FetchWindGrid() error {
 			}
 
 			if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {
+				log.Printf("Wind decode error for (%.2f, %.2f): %v", lat, lon, err)
 				return
 			}
 

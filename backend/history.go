@@ -177,14 +177,21 @@ func (h *FireHistory) Cleanup() int {
 	return removed
 }
 
-// GetAll returns all current fires
+// copyFireRecord creates a deep copy of a FireRecord
+func copyFireRecord(f *FireRecord) *FireRecord {
+	copy := *f
+	copy.Satellites = append([]string{}, f.Satellites...)
+	return &copy
+}
+
+// GetAll returns all current fires (deep copied to prevent race conditions)
 func (h *FireHistory) GetAll() []*FireRecord {
 	h.mu.RLock()
 	defer h.mu.RUnlock()
 
 	fires := make([]*FireRecord, 0, len(h.fires))
 	for _, fire := range h.fires {
-		fires = append(fires, fire)
+		fires = append(fires, copyFireRecord(fire))
 	}
 	return fires
 }
@@ -222,7 +229,7 @@ func (h *FireHistory) GetStats() map[string]interface{} {
 	return result
 }
 
-// GetMajorFires returns fires with significant or major severity
+// GetMajorFires returns fires with significant or major severity (deep copied)
 func (h *FireHistory) GetMajorFires() []*FireRecord {
 	h.mu.RLock()
 	defer h.mu.RUnlock()
@@ -230,7 +237,7 @@ func (h *FireHistory) GetMajorFires() []*FireRecord {
 	var major []*FireRecord
 	for _, fire := range h.fires {
 		if fire.Severity == "major" || fire.Severity == "significant" {
-			major = append(major, fire)
+			major = append(major, copyFireRecord(fire))
 		}
 	}
 	return major
