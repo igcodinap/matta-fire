@@ -81,19 +81,30 @@ var upgrader = websocket.Upgrader{
 	},
 }
 
+type WSClient struct {
+	conn *websocket.Conn
+	mu   sync.Mutex
+}
+
+func (c *WSClient) WriteJSON(v interface{}) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.conn.WriteJSON(v)
+}
+
 type WSHub struct {
-	clients    map[*websocket.Conn]bool
+	clients    map[*WSClient]bool
 	broadcast  chan WSMessage
-	register   chan *websocket.Conn
-	unregister chan *websocket.Conn
-	mu         sync.RWMutex
+	register   chan *WSClient
+	unregister chan *WSClient
+	mu         sync.Mutex
 }
 
 var hub = &WSHub{
-	clients:    make(map[*websocket.Conn]bool),
+	clients:    make(map[*WSClient]bool),
 	broadcast:  make(chan WSMessage, 100),
-	register:   make(chan *websocket.Conn),
-	unregister: make(chan *websocket.Conn),
+	register:   make(chan *WSClient),
+	unregister: make(chan *WSClient),
 }
 
 func (h *WSHub) run() {
@@ -109,21 +120,21 @@ func (h *WSHub) run() {
 			h.mu.Lock()
 			if _, ok := h.clients[client]; ok {
 				delete(h.clients, client)
-				client.Close()
+				client.conn.Close()
 			}
 			h.mu.Unlock()
 			log.Printf("WebSocket client disconnected. Total: %d", len(h.clients))
 
 		case message := <-h.broadcast:
-			h.mu.RLock()
+			h.mu.Lock()
 			for client := range h.clients {
 				err := client.WriteJSON(message)
 				if err != nil {
-					client.Close()
+					client.conn.Close()
 					delete(h.clients, client)
 				}
 			}
-			h.mu.RUnlock()
+			h.mu.Unlock()
 		}
 	}
 }
@@ -667,11 +678,12 @@ func wsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	hub.register <- conn
+	client := &WSClient{conn: conn}
+	hub.register <- client
 
-	// Send current data immediately
+	// Send current data immediately (using the mutex-protected WriteJSON)
 	data, _ := cache.Get()
-	conn.WriteJSON(WSMessage{
+	client.WriteJSON(WSMessage{
 		Type:    "update",
 		Payload: data,
 	})
@@ -679,7 +691,7 @@ func wsHandler(w http.ResponseWriter, r *http.Request) {
 	// Keep connection alive and handle disconnection
 	go func() {
 		defer func() {
-			hub.unregister <- conn
+			hub.unregister <- client
 		}()
 		for {
 			_, _, err := conn.ReadMessage()
