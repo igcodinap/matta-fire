@@ -1,0 +1,29 @@
+# Environment variables
+.env
+*.env
+.env.*
+
+# Go binaries
+wildfire-monitor
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test binary
+*.test
+
+# Go workspace
+go.work
+go.work.sum
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db

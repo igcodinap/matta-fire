@@ -1,0 +1,39 @@
+# Environment variables
+.env
+*.env
+.env.*
+
+# Go
+backend/wildfire-monitor
+backend/server
+backend/static/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+go.work
+go.work.sum
+
+# Node
+node_modules/
+dist/
+.cache/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+
+# Build
+build/
