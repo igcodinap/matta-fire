@@ -394,27 +394,7 @@ function App() {
         <div className="header-right">
           {!isMobile && <span className="status-text">{getStatusText()}</span>}
           <div className="header-controls">
-            <button
-              className={`toggle-btn ${showHeatmap ? 'active' : ''}`}
-              onClick={() => setShowHeatmap(!showHeatmap)}
-              title="Mapa de calor"
-            >
-              {isMobile ? '🔥' : 'Calor'}
-            </button>
-            <button
-              className={`toggle-btn ${showVegetation ? 'active' : ''}`}
-              onClick={() => setShowVegetation(!showVegetation)}
-              title="Capa de vegetacion (ESA WorldCover)"
-            >
-              {isMobile ? '🌿' : 'Vegetacion'}
-            </button>
-            <button
-              className={`toggle-btn ${showClusters ? 'active' : ''}`}
-              onClick={() => setShowClusters(!showClusters)}
-              title="Agrupar marcadores"
-            >
-              {isMobile ? '⊕' : 'Clusters'}
-            </button>
+
             {!isMobile && (
               <>
                 <button className="export-btn" onClick={() => handleExport('csv')} title="Exportar CSV">
@@ -504,8 +484,10 @@ function App() {
                 fires={filteredFires}
                 theme={theme}
                 showHeatmap={showHeatmap}
+                setShowHeatmap={setShowHeatmap}
                 showClusters={showClusters}
                 showVegetation={showVegetation}
+                setShowVegetation={setShowVegetation}
               />
             </Suspense>
           </div>

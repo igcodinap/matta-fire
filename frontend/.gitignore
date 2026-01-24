@@ -20,3 +20,6 @@ Thumbs.db
 # Logs
 *.log
 npm-debug.log*
+
+# tbd
+src/layers/chile-geojson-master/*.geojson
