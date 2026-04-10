@@ -373,6 +373,9 @@ function Map({ fires, theme, showHeatmap, showClusters, showVegetation }) {
       {/* Heatmap layer */}
       {showHeatmap && heatmapFires && <HeatmapLayer fires={heatmapFires} />}
 
+      {/* Trail dots — always visible outside heatmap mode */}
+      {!showHeatmap && trailMarkers}
+
       {/* Fire markers — clustered or flat */}
       {!showHeatmap && showClusters ? (
         <MarkerClusterGroup
@@ -383,10 +386,7 @@ function Map({ fires, theme, showHeatmap, showClusters, showVegetation }) {
           {clusteredMarkers}
         </MarkerClusterGroup>
       ) : (
-        <>
-          {!showHeatmap && trailMarkers}
-          {!showHeatmap && markers}
-        </>
+        !showHeatmap && markers
       )}
     </MapContainer>
   )
