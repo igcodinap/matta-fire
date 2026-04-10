@@ -323,6 +323,15 @@ func parseCSV(r io.Reader, sourceName string) ([]Feature, error) {
 			continue
 		}
 
+		// Skip low-confidence detections *before* parseRecord side effects
+		// (sun glint, industrial heat sources, volcanic activity)
+		if idx, ok := colIndex["confidence"]; ok && idx < len(record) {
+			conf := strings.ToLower(strings.TrimSpace(record[idx]))
+			if conf == "l" || conf == "low" {
+				continue
+			}
+		}
+
 		feature, err := parseRecord(record, colIndex, sourceName)
 		if err != nil {
 			continue
