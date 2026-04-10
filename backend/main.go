@@ -323,15 +323,17 @@ func parseCSV(r io.Reader, sourceName string) ([]Feature, error) {
 			continue
 		}
 
-		feature, err := parseRecord(record, colIndex, sourceName)
-		if err != nil {
-			continue
+		// Skip low-confidence detections *before* parseRecord side effects
+		// (sun glint, industrial heat sources, volcanic activity)
+		if idx, ok := colIndex["confidence"]; ok && idx < len(record) {
+			conf := strings.ToLower(strings.TrimSpace(record[idx]))
+			if conf == "l" || conf == "low" {
+				continue
+			}
 		}
 
-		// Skip low-confidence detections — high false-positive rate
-		// (sun glint, industrial heat sources, volcanic activity)
-		conf := strings.ToLower(feature.Properties.Confidence)
-		if conf == "l" || conf == "low" {
+		feature, err := parseRecord(record, colIndex, sourceName)
+		if err != nil {
 			continue
 		}
 

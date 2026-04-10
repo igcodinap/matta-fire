@@ -474,8 +474,14 @@ html, body, #root {
   50% { stroke-opacity: 0.4; stroke-width: 3; }
 }
 
-.new-fire-marker .leaflet-interactive {
+.new-fire-marker.leaflet-interactive {
   animation: new-fire-pulse 2s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .new-fire-marker.leaflet-interactive {
+    animation: none;
+  }
 }
 
 /* Region tooltip */

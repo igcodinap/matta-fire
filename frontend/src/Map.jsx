@@ -1,5 +1,5 @@
 import React, { useMemo, useEffect } from 'react'
-import { MapContainer, TileLayer, CircleMarker, Popup, useMap, GeoJSON, WMSTileLayer } from 'react-leaflet'
+import { MapContainer, TileLayer, CircleMarker, Marker, Popup, useMap, GeoJSON, WMSTileLayer } from 'react-leaflet'
 import MarkerClusterGroup from 'react-leaflet-cluster'
 import L from 'leaflet'
 import 'leaflet.heat'
@@ -162,13 +162,78 @@ const VEGETATION_WMS = {
   attribution: '© ESA WorldCover 2020'
 }
 
+// HTML-based fire icon for MarkerClusterGroup (CircleMarker can't be clustered)
+// Renders a colored circle with optional white ring for new fires
+const fireIcon = (severity, isNew, cluster) => {
+  const radius = getRadius(severity) * 1.5 // Scale up for divIcon visibility
+  const color = getFillColor(severity)
+  const ring = isNew ? 'border: 2px solid #fff; box-shadow: 0 0 4px rgba(255,255,255,0.5);' : ''
+
+  return L.divIcon({
+    html: `<div style="width:${radius * 2}px;height:${radius * 2}px;border-radius:50%;background:${color};opacity:0.85;${ring}"></div>`,
+    iconSize: [radius * 2, radius * 2],
+    iconAnchor: [radius, radius],
+    className: `fire-cluster-marker${isNew ? ' new-fire-marker' : ''}`,
+  })
+}
+
+// Reusable popup content (same for CircleMarker and Marker)
+const FirePopupContent = ({ props, lat, lng }) => {
+  const regionalRisk = getRegionalRisk(props.region)
+
+  return (
+    <div className="fire-popup">
+      <h3>
+        {getSeverityIcon(props.severity)} Foco de Incendio
+        <span className={`severity-badge ${props.severity}`}>
+          {getSeverityLabel(props.severity)}
+        </span>
+      </h3>
+      {props.detection_count > 1 && (
+        <p className="fire-duration">
+          🕐 Activo desde {props.first_seen} ({props.duration})
+          <br/>
+          <small>Detectado {props.detection_count} veces</small>
+        </p>
+      )}
+      <p><strong>Coordenadas:</strong> {lat.toFixed(4)}, {lng.toFixed(4)}</p>
+      <p><strong>FRP actual:</strong> {props.frp?.toFixed(1) || 'N/A'} MW</p>
+      {props.max_frp > props.frp && (
+        <p><strong>FRP maximo:</strong> {props.max_frp?.toFixed(1)} MW</p>
+      )}
+      <p><strong>Satelite:</strong> {props.satellite}</p>
+      <p>
+        <strong>Region:</strong> {props.region || 'N/A'}
+        {regionalRisk.level !== 'low' && (
+          <span
+            className={`popup-region-risk ${regionalRisk.level}`}
+            title="Clasificacion basada en estadisticas historicas de CONAF (2002-2025)"
+          >
+            {regionalRisk.icon} {regionalRisk.label}
+          </span>
+        )}
+      </p>
+      <p><strong>Dia/Noche:</strong> {props.daynight === 'D' ? 'Dia' : 'Noche'}</p>
+      {props.wind_speed > 0 && (
+        <>
+          <hr style={{margin: '8px 0', borderColor: '#444'}} />
+          <p><strong>🌬️ Viento:</strong> {props.wind_speed?.toFixed(1)} km/h {getWindDirectionLabel(props.wind_direction)}</p>
+          {props.wind_speed >= 20 && (
+            <p style={{fontSize: '11px', color: '#f97316', fontWeight: 'bold'}}>⚠️ Viento fuerte - Mayor propagacion</p>
+          )}
+        </>
+      )}
+    </div>
+  )
+}
+
 function Map({ fires, theme, showHeatmap, showClusters, showVegetation }) {
   const tileLayer = TILE_LAYERS[theme] || TILE_LAYERS.dark
 
   // Group fires by grid_id — one marker per unique fire
   // Falls back to individual markers for features without grid_id
   const fireGroups = useMemo(() => {
-    if (!fires?.features || showHeatmap) return []
+    if (!fires?.features) return []
 
     const groups = {}
     const ungrouped = []
@@ -196,7 +261,7 @@ function Map({ fires, theme, showHeatmap, showClusters, showVegetation }) {
     ungrouped.forEach(f => grouped.push({ main: f, trail: [] }))
 
     return grouped
-  }, [fires, showHeatmap])
+  }, [fires])
 
   // Trail dots — past detection positions, rendered behind main markers
   const trailMarkers = useMemo(() => {
@@ -219,13 +284,12 @@ function Map({ fires, theme, showHeatmap, showClusters, showVegetation }) {
     )
   }, [fireGroups])
 
-  // Main fire markers — one per unique fire
+  // Main fire markers — one per unique fire (CircleMarker for non-clustered mode)
   const markers = useMemo(() => {
     return fireGroups.map(({ main }) => {
       const [lng, lat] = main.geometry.coordinates
       const props = main.properties
       const isNew = props.detection_count <= 2
-      const regionalRisk = getRegionalRisk(props.region)
 
       return (
         <CircleMarker
@@ -238,51 +302,27 @@ function Map({ fires, theme, showHeatmap, showClusters, showVegetation }) {
           weight={isNew ? 2 : 0}
           className={isNew ? 'new-fire-marker' : ''}
         >
-          <Popup>
-            <div className="fire-popup">
-              <h3>
-                {getSeverityIcon(props.severity)} Foco de Incendio
-                <span className={`severity-badge ${props.severity}`}>
-                  {getSeverityLabel(props.severity)}
-                </span>
-              </h3>
-              {props.detection_count > 1 && (
-                <p className="fire-duration">
-                  🕐 Activo desde {props.first_seen} ({props.duration})
-                  <br/>
-                  <small>Detectado {props.detection_count} veces</small>
-                </p>
-              )}
-              <p><strong>Coordenadas:</strong> {lat.toFixed(4)}, {lng.toFixed(4)}</p>
-              <p><strong>FRP actual:</strong> {props.frp?.toFixed(1) || 'N/A'} MW</p>
-              {props.max_frp > props.frp && (
-                <p><strong>FRP maximo:</strong> {props.max_frp?.toFixed(1)} MW</p>
-              )}
-              <p><strong>Satelite:</strong> {props.satellite}</p>
-              <p>
-                <strong>Region:</strong> {props.region || 'N/A'}
-                {regionalRisk.level !== 'low' && (
-                  <span
-                    className={`popup-region-risk ${regionalRisk.level}`}
-                    title="Clasificacion basada en estadisticas historicas de CONAF (2002-2025)"
-                  >
-                    {regionalRisk.icon} {regionalRisk.label}
-                  </span>
-                )}
-              </p>
-              <p><strong>Dia/Noche:</strong> {props.daynight === 'D' ? 'Dia' : 'Noche'}</p>
-              {props.wind_speed > 0 && (
-                <>
-                  <hr style={{margin: '8px 0', borderColor: '#444'}} />
-                  <p><strong>🌬️ Viento:</strong> {props.wind_speed?.toFixed(1)} km/h {getWindDirectionLabel(props.wind_direction)}</p>
-                  {props.wind_speed >= 20 && (
-                    <p style={{fontSize: '11px', color: '#f97316', fontWeight: 'bold'}}>⚠️ Viento fuerte - Mayor propagacion</p>
-                  )}
-                </>
-              )}
-            </div>
-          </Popup>
+          <Popup><FirePopupContent props={props} lat={lat} lng={lng} /></Popup>
         </CircleMarker>
+      )
+    })
+  }, [fireGroups])
+
+  // Clustered markers — use Marker + divIcon since MarkerClusterGroup can't cluster CircleMarker
+  const clusteredMarkers = useMemo(() => {
+    return fireGroups.map(({ main }) => {
+      const [lng, lat] = main.geometry.coordinates
+      const props = main.properties
+      const isNew = props.detection_count <= 2
+
+      return (
+        <Marker
+          key={`fire-cluster-${props.grid_id || `${lat}-${lng}-${props.timestamp}`}`}
+          position={[lat, lng]}
+          icon={fireIcon(props.severity, isNew)}
+        >
+          <Popup><FirePopupContent props={props} lat={lat} lng={lng} /></Popup>
+        </Marker>
       )
     })
   }, [fireGroups])
@@ -340,8 +380,7 @@ function Map({ fires, theme, showHeatmap, showClusters, showVegetation }) {
           maxClusterRadius={50}
           spiderfyOnMaxZoom
         >
-          {trailMarkers}
-          {markers}
+          {clusteredMarkers}
         </MarkerClusterGroup>
       ) : (
         <>
