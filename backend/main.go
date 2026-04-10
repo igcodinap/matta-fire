@@ -328,6 +328,13 @@ func parseCSV(r io.Reader, sourceName string) ([]Feature, error) {
 			continue
 		}
 
+		// Skip low-confidence detections — high false-positive rate
+		// (sun glint, industrial heat sources, volcanic activity)
+		conf := strings.ToLower(feature.Properties.Confidence)
+		if conf == "l" || conf == "low" {
+			continue
+		}
+
 		features = append(features, feature)
 	}
 

@@ -54,7 +54,7 @@ function FilterPanel({ filters, setFilters, regions, sources, isMobile, isOpen, 
             </select>
           </div>
 
-          {/* Confidence */}
+          {/* Confidence — low-confidence detections are filtered server-side */}
           <div className="filter-group">
             <label>Confianza</label>
             <select
@@ -64,7 +64,6 @@ function FilterPanel({ filters, setFilters, regions, sources, isMobile, isOpen, 
               <option value="all">Todas</option>
               <option value="high">Alta</option>
               <option value="nominal">Nominal</option>
-              <option value="low">Baja</option>
             </select>
           </div>
 

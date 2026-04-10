@@ -468,6 +468,16 @@ html, body, #root {
   color: var(--text-primary);
 }
 
+/* New fire marker — white ring with subtle pulse */
+@keyframes new-fire-pulse {
+  0%, 100% { stroke-opacity: 1; stroke-width: 2; }
+  50% { stroke-opacity: 0.4; stroke-width: 3; }
+}
+
+.new-fire-marker .leaflet-interactive {
+  animation: new-fire-pulse 2s ease-in-out infinite;
+}
+
 /* Region tooltip */
 .region-tooltip {
   background: var(--bg-secondary) !important;
