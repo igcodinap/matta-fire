@@ -1267,14 +1267,23 @@ html, body, #root {
   display: flex;
   flex-direction: column;
   overflow-y: auto;
+  transition: height 0.3s ease;
+}
+
+.info-panel.collapsed {
+  height: auto;
+  overflow: hidden;
 }
 
 .info-header {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   padding: 12px 15px;
   background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
   border-bottom: 1px solid rgba(245, 158, 11, 0.3);
+  cursor: pointer;
+  user-select: none;
 }
 
 .info-header h3 {
@@ -1284,10 +1293,17 @@ html, body, #root {
   align-items: center;
   gap: 8px;
   margin: 0;
+  flex: 1;
 }
 
 .info-icon {
   font-size: 1rem;
+}
+
+.info-toggle-icon {
+  color: white;
+  font-size: 0.7rem;
+  transition: transform 0.2s ease;
 }
 
 .info-content {

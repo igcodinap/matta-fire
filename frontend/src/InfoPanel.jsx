@@ -1,13 +1,19 @@
+import { useState } from 'react'
+
 function InfoPanel() {
+  const [collapsed, setCollapsed] = useState(true) // Collapsed by default
+
   return (
-    <div className="info-panel">
-      <div className="info-header">
+    <div className={`info-panel ${collapsed ? 'collapsed' : ''}`}>
+      <div className="info-header" onClick={() => setCollapsed(!collapsed)}>
         <h3>
           <span className="info-icon">📋</span>
           <span>Quemas Agrícolas</span>
         </h3>
+        <span className="info-toggle-icon">{collapsed ? '▲' : '▼'}</span>
       </div>
 
+      {!collapsed && (
       <div className="info-content">
         <section className="info-section">
           <h4>🔥 Calendario de Quemas CONAF 2025–2026</h4>
@@ -85,8 +91,8 @@ function InfoPanel() {
           </a>
         </section>
       </div>
+      )}
     </div>
   )
 }
-
 export default InfoPanel
