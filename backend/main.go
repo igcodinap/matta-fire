@@ -464,7 +464,7 @@ func pointInPolygon(x, y float64, polygon [][]float64) bool {
 	}
 
 	inside := false
-	for i, j := 0, n-1; i < n; j = i {
+	for i, j := 0, n-1; i < n; j, i = i, i+1 {
 		xi, yi := polygon[i][0], polygon[i][1]
 		xj, yj := polygon[j][0], polygon[j][1]
 
