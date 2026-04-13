@@ -3,6 +3,7 @@ import FilterPanel from './FilterPanel'
 import TimeSlider from './TimeSlider'
 import FWIPanel from './FWIPanel'
 import AcopioPanel from './AcopioPanel'
+import InfoPanel from './InfoPanel'
 import './App.css'
 
 // Check if mobile on initial render
@@ -512,6 +513,7 @@ function App() {
         </div>
 
         <AcopioPanel isMobile={isMobile} />
+        <InfoPanel isMobile={isMobile} />
         <FWIPanel isMobile={isMobile} />
       </div>
 

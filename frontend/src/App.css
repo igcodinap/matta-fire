@@ -1557,6 +1557,215 @@ html, body, #root {
 }
 
 /* =============================================================================
+   Info Panel Styles (Quemas Agrícolas)
+   ============================================================================= */
+
+.info-panel {
+  width: 280px;
+  background: var(--bg-secondary);
+  border-left: 1px solid var(--accent);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  transition: width 0.3s;
+}
+
+.info-panel.collapsed {
+  width: 50px;
+}
+
+.info-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 15px;
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  cursor: pointer;
+  border-bottom: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.info-header h3 {
+  color: white;
+  font-size: 0.85rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+}
+
+.info-icon {
+  font-size: 1rem;
+}
+
+.info-header .collapse-icon {
+  color: white;
+  font-size: 1rem;
+  font-weight: bold;
+}
+
+.info-content {
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  flex: 1;
+  overflow-y: auto;
+}
+
+.info-section h4 {
+  color: var(--text-primary);
+  font-size: 0.8rem;
+  margin: 0 0 8px 0;
+  border-bottom: 1px solid rgba(233, 69, 96, 0.2);
+  padding-bottom: 4px;
+}
+
+.info-section p {
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  line-height: 1.5;
+  margin: 0 0 8px 0;
+}
+
+.info-section ul {
+  padding-left: 16px;
+  margin: 0;
+}
+
+.info-section li {
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  line-height: 1.5;
+  margin-bottom: 6px;
+}
+
+.info-section li strong {
+  color: var(--text-primary);
+}
+
+/* Info table */
+.info-table {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  background: rgba(233, 69, 96, 0.1);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.info-table-row {
+  display: flex;
+  gap: 8px;
+  padding: 8px 10px;
+  background: var(--bg-tertiary);
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+}
+
+.info-table-row.header {
+  background: var(--bg-primary);
+  color: var(--accent);
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.info-table-row strong {
+  color: var(--text-primary);
+  min-width: 50px;
+}
+
+.info-table-row span {
+  flex: 1;
+}
+
+/* Info links */
+.info-link {
+  display: block;
+  color: #22c55e;
+  text-decoration: none;
+  font-size: 0.75rem;
+  padding: 6px 8px;
+  background: var(--bg-tertiary);
+  border-radius: 4px;
+  margin-bottom: 4px;
+  transition: background 0.2s;
+}
+
+.info-link:hover {
+  background: var(--bg-primary);
+  text-decoration: underline;
+}
+
+.info-link:last-child {
+  margin-bottom: 0;
+}
+
+/* Info Panel Mobile */
+@media (max-width: 1400px) {
+  .info-panel {
+    position: fixed;
+    right: 0;
+    top: 0;
+    height: 100%;
+    z-index: 1001;
+    box-shadow: -2px 0 15px rgba(0, 0, 0, 0.3);
+    transform: translateX(100%);
+    transition: transform 0.3s ease;
+  }
+
+  .info-panel:not(.collapsed) {
+    transform: translateX(0);
+  }
+
+  .info-panel.collapsed {
+    width: 48px;
+    transform: translateX(0);
+  }
+
+  .info-panel.collapsed .info-header h3 span:not(.info-icon) {
+    display: none;
+  }
+}
+
+@media (max-width: 768px) {
+  .info-panel {
+    width: 100%;
+    max-width: 100%;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    top: auto;
+    height: auto;
+    max-height: 65vh;
+    border-left: none;
+    border-top: 2px solid #f59e0b;
+    border-radius: 16px 16px 0 0;
+    transform: translateY(calc(100% - 48px));
+    z-index: 1004;
+  }
+
+  .info-panel:not(.collapsed) {
+    transform: translateY(0);
+  }
+
+  .info-panel.collapsed {
+    width: 100%;
+    transform: translateY(calc(100% - 48px));
+  }
+
+  .info-header {
+    border-radius: 16px 16px 0 0;
+  }
+
+  .info-table-row {
+    flex-direction: column;
+    gap: 2px;
+  }
+}
+
+/* =============================================================================
    Footer Styles
    ============================================================================= */
 
