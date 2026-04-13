@@ -377,7 +377,7 @@ function Map({ fires, theme, showHeatmap, showClusters, showVegetation }) {
       {!showHeatmap && trailMarkers}
 
       {/* Fire markers — clustered or flat */}
-      {!showHeatmap && showClusters ? (
+      {!showHeatmap && showClusters && (
         <MarkerClusterGroup
           chunkedLoading
           maxClusterRadius={50}
@@ -385,9 +385,8 @@ function Map({ fires, theme, showHeatmap, showClusters, showVegetation }) {
         >
           {clusteredMarkers}
         </MarkerClusterGroup>
-      ) : (
-        !showHeatmap && markers
       )}
+      {!showHeatmap && !showClusters && markers}
     </MapContainer>
   )
 }
