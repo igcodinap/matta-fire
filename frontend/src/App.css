@@ -92,15 +92,6 @@ html, body, #root {
   border: 1px solid var(--warning);
 }
 
-.wind-badge {
-  padding: 4px 10px;
-  border-radius: 12px;
-  font-size: 0.75rem;
-  background: rgba(233, 69, 96, 0.2);
-  color: var(--accent);
-  border: 1px solid var(--accent);
-}
-
 .header-right {
   display: flex;
   align-items: center;

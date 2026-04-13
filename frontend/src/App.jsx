@@ -73,7 +73,6 @@ function App() {
   const [filters, setFilters] = useState(() => INITIAL_FILTERS)
   const [timeRange, setTimeRange] = useState(() => ({ min: 0, max: Infinity }))
   const [regions, setRegions] = useState(() => ({}))
-  const [wind, setWind] = useState(() => null)
   const [currentHour, setCurrentHour] = useState(() => new Date().getHours())
   const [mobileFilterOpen, setMobileFilterOpen] = useState(() => false)
   const [isMobile, setIsMobile] = useState(() => isMobileDevice())
@@ -138,62 +137,16 @@ function App() {
     }
   }, [fires, currentHour])
 
-  // Request notification permission and fetch initial data in parallel
+  // Request notification permission and fetch regions
   useEffect(() => {
-    // Notification permission
     if ('Notification' in window && Notification.permission === 'default') {
       Notification.requestPermission()
     }
-
-    // Parallel fetch for regions and initial wind data
-    const fetchInitialData = async () => {
-      try {
-        const [regionsRes, windRes] = await Promise.all([
-          fetch('/api/regions'),
-          fetch('/api/wind?lat=-33.45&lon=-70.65')
-        ])
-
-        const [regionsData, windData] = await Promise.all([
-          regionsRes.json(),
-          windRes.json()
-        ])
-
-        setRegions(regionsData)
-        if (windData.current) {
-          setWind({
-            speed: windData.current.wind_speed_10m,
-            direction: windData.current.wind_direction_10m
-          })
-        }
-      } catch (err) {
-        console.error('Initial data fetch error:', err)
-      }
-    }
-
-    fetchInitialData()
+    fetch('/api/regions')
+      .then(res => res.json())
+      .then(data => setRegions(data))
+      .catch(err => console.error('Regions fetch error:', err))
   }, [])
-
-  // Fetch wind data (for periodic updates after initial load)
-  const fetchWind = useCallback(async () => {
-    try {
-      const res = await fetch('/api/wind?lat=-33.45&lon=-70.65')
-      const data = await res.json()
-      if (data.current) {
-        setWind({
-          speed: data.current.wind_speed_10m,
-          direction: data.current.wind_direction_10m
-        })
-      }
-    } catch (err) {
-      console.error('Wind fetch error:', err)
-    }
-  }, [])
-
-  // Periodic wind updates (initial fetch is done in parallel above)
-  useEffect(() => {
-    const interval = setInterval(fetchWind, 5 * 60 * 1000)
-    return () => clearInterval(interval)
-  }, [fetchWind])
 
   // WebSocket connection
   const connectWebSocket = useCallback(() => {
@@ -384,11 +337,6 @@ function App() {
             <span className={`status-badge ${wsConnected ? 'connected' : 'disconnected'}`}>
               {wsConnected ? 'En vivo' : 'Reconectando...'}
             </span>
-            {wind && !isMobile && (
-              <span className="wind-badge">
-                Viento: {wind.speed} km/h {getWindDirection(wind.direction)}
-              </span>
-            )}
           </div>
         </div>
         <div className="header-right">
@@ -520,12 +468,6 @@ function App() {
       </footer>
     </div>
   )
-}
-
-function getWindDirection(degrees) {
-  const directions = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW']
-  const index = Math.round(degrees / 45) % 8
-  return directions[index]
 }
 
 export default App
