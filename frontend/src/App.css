@@ -41,7 +41,10 @@ html, body, #root {
   font-family: system-ui, -apple-system, sans-serif;
 }
 
-/* Header */
+/* =============================================================================
+   Header
+   ============================================================================= */
+
 .header {
   padding: 10px 20px;
   background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-primary) 100%);
@@ -135,7 +138,10 @@ html, body, #root {
   padding: 4px 8px !important;
 }
 
-/* Alerts */
+/* =============================================================================
+   Alerts
+   ============================================================================= */
+
 .alerts-container {
   position: fixed;
   top: 70px;
@@ -192,112 +198,29 @@ html, body, #root {
   opacity: 1;
 }
 
-/* Main Content */
+/* =============================================================================
+   Main Content Layout
+   ============================================================================= */
+
 .main-content {
   flex: 1;
   display: flex;
   overflow: hidden;
 }
 
-/* Filter Panel */
-.filter-panel {
-  width: 250px;
-  background: var(--bg-secondary);
-  border-right: 1px solid var(--accent);
+/* Side panels container (Info + FWI stacked on right) */
+.side-panels {
+  width: 300px;
   display: flex;
   flex-direction: column;
-  transition: width 0.3s;
   overflow-y: auto;
+  border-left: 1px solid rgba(233, 69, 96, 0.3);
 }
 
-.filter-panel.collapsed {
-  width: 50px;
-}
+/* =============================================================================
+   Map
+   ============================================================================= */
 
-.filter-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 15px;
-  background: var(--bg-tertiary);
-  cursor: pointer;
-  border-bottom: 1px solid rgba(233, 69, 96, 0.3);
-}
-
-.filter-header h3 {
-  color: var(--text-primary);
-  font-size: 0.95rem;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.filter-badge {
-  background: var(--accent);
-  color: white;
-  padding: 2px 6px;
-  border-radius: 10px;
-  font-size: 0.7rem;
-}
-
-.collapse-icon {
-  color: var(--text-secondary);
-  font-size: 0.8rem;
-}
-
-.filter-content {
-  padding: 15px;
-  display: flex;
-  flex-direction: column;
-  gap: 15px;
-}
-
-.filter-group {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-}
-
-.filter-group label {
-  color: var(--text-secondary);
-  font-size: 0.8rem;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.filter-group select,
-.filter-group input {
-  padding: 8px 10px;
-  background: var(--bg-primary);
-  border: 1px solid rgba(233, 69, 96, 0.3);
-  border-radius: 6px;
-  color: var(--text-primary);
-  font-size: 0.85rem;
-}
-
-.filter-group select:focus,
-.filter-group input:focus {
-  outline: none;
-  border-color: var(--accent);
-}
-
-.filter-panel .reset-btn {
-  padding: 10px;
-  background: transparent;
-  border: 1px solid var(--accent);
-  border-radius: 6px;
-  color: var(--accent);
-  cursor: pointer;
-  font-size: 0.85rem;
-  transition: all 0.2s;
-}
-
-.filter-panel .reset-btn:hover {
-  background: var(--accent);
-  color: white;
-}
-
-/* Map Wrapper */
 .map-wrapper {
   flex: 1;
   display: flex;
@@ -305,7 +228,67 @@ html, body, #root {
   position: relative;
 }
 
-/* Time Slider */
+.map-container {
+  flex: 1;
+  width: 100%;
+  position: relative;
+}
+
+.leaflet-container {
+  width: 100%;
+  height: 100%;
+  background-color: var(--bg-primary);
+}
+
+/* =============================================================================
+   Map Legend (floating over map)
+   ============================================================================= */
+
+.map-legend {
+  position: absolute;
+  bottom: 30px;
+  left: 12px;
+  z-index: 1000;
+  background: rgba(22, 33, 62, 0.92);
+  border: 1px solid rgba(233, 69, 96, 0.4);
+  border-radius: 8px;
+  padding: 10px 14px;
+  pointer-events: auto;
+}
+
+.light .map-legend {
+  background: rgba(255, 255, 255, 0.92);
+  border-color: rgba(233, 69, 96, 0.3);
+}
+
+.map-legend-title {
+  color: var(--text-secondary);
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 6px;
+}
+
+.map-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 0;
+  color: var(--text-primary);
+  font-size: 0.78rem;
+}
+
+.map-legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* =============================================================================
+   Time Slider
+   ============================================================================= */
+
 .time-slider {
   background: var(--bg-secondary);
   border-bottom: 1px solid rgba(233, 69, 96, 0.3);
@@ -412,20 +395,10 @@ html, body, #root {
   font-size: 0.8rem;
 }
 
-/* Map Container */
-.map-container {
-  flex: 1;
-  width: 100%;
-  position: relative;
-}
+/* =============================================================================
+   Fire Popup Styles
+   ============================================================================= */
 
-.leaflet-container {
-  width: 100%;
-  height: 100%;
-  background-color: var(--bg-primary);
-}
-
-/* Popup Styling */
 .leaflet-popup-content-wrapper {
   background: var(--bg-secondary);
   color: var(--text-primary);
@@ -439,15 +412,19 @@ html, body, #root {
 
 .fire-popup {
   font-size: 0.85rem;
-  min-width: 200px;
+  min-width: 220px;
 }
 
 .fire-popup h3 {
   color: var(--accent);
-  margin-bottom: 10px;
+  margin-bottom: 6px;
   font-size: 1rem;
   border-bottom: 1px solid rgba(233, 69, 96, 0.3);
   padding-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 .fire-popup p {
@@ -459,613 +436,46 @@ html, body, #root {
   color: var(--text-primary);
 }
 
-/* New fire marker — white ring with subtle pulse */
-@keyframes new-fire-pulse {
-  0%, 100% { stroke-opacity: 1; stroke-width: 2; }
-  50% { stroke-opacity: 0.4; stroke-width: 3; }
-}
-
-.new-fire-marker.leaflet-interactive {
-  animation: new-fire-pulse 2s ease-in-out infinite;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .new-fire-marker.leaflet-interactive {
-    animation: none;
-  }
-}
-
-/* Region tooltip */
-.region-tooltip {
-  background: var(--bg-secondary) !important;
-  border: 1px solid var(--accent) !important;
-  color: var(--text-primary) !important;
+.fire-description {
+  color: var(--text-secondary);
   font-size: 0.8rem;
-  padding: 5px 10px !important;
-  border-radius: 4px !important;
-}
-
-/* Wind Indicator */
-.wind-arrow {
-  background: transparent !important;
-  border: none !important;
-}
-
-.wind-indicator {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  color: var(--accent);
-  text-shadow: 0 0 10px rgba(233, 69, 96, 0.8);
-}
-
-.wind-indicator .arrow {
-  font-size: 2rem;
-  font-weight: bold;
-}
-
-.wind-indicator .speed {
-  font-size: 0.7rem;
-  background: rgba(0, 0, 0, 0.7);
-  padding: 2px 6px;
-  border-radius: 4px;
-}
-
-/* Loading Overlay */
-.loading-overlay {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  background: rgba(22, 33, 62, 0.95);
-  padding: 20px 40px;
-  border-radius: 8px;
-  border: 1px solid var(--accent);
-  color: var(--text-primary);
-  z-index: 1000;
-  font-size: 0.95rem;
-}
-
-/* =============================================================================
-   Mobile Responsive Styles
-   ============================================================================= */
-
-/* Mobile menu button */
-.mobile-menu-btn {
-  display: none;
-  background: transparent;
-  border: 1px solid var(--accent);
-  color: var(--accent);
-  font-size: 1.3rem;
-  padding: 6px 10px;
-  border-radius: 6px;
-  cursor: pointer;
-  line-height: 1;
-}
-
-.mobile-menu-btn:hover {
-  background: var(--accent);
-  color: white;
-}
-
-/* Mobile overlay for filter drawer */
-.mobile-overlay {
-  display: none;
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
-  z-index: 1000;
-}
-
-@media (max-width: 768px) {
-  /* Show mobile elements */
-  .mobile-menu-btn {
-    display: block;
-  }
-
-  .mobile-overlay {
-    display: block;
-  }
-
-  /* Header adjustments */
-  .header {
-    padding: 8px 12px;
-    gap: 8px;
-  }
-
-  .header h1 {
-    font-size: 0.95rem;
-  }
-
-  .header-left {
-    gap: 10px;
-  }
-
-  .header-right {
-    gap: 8px;
-  }
-
-  .status-badges {
-    display: none;
-  }
-
-  .status-text {
-    display: none;
-  }
-
-  .header-controls {
-    gap: 4px;
-  }
-
-  .header-controls button {
-    padding: 6px 8px;
-    font-size: 0.9rem;
-  }
-
-  /* Filter Panel - Mobile Drawer */
-  .filter-panel {
-    position: fixed;
-    left: 0;
-    top: 0;
-    height: 100%;
-    width: 280px;
-    z-index: 1001;
-    transform: translateX(-100%);
-    transition: transform 0.3s ease;
-    box-shadow: 2px 0 15px rgba(0, 0, 0, 0.5);
-  }
-
-  .filter-panel.mobile.open {
-    transform: translateX(0);
-  }
-
-  .filter-panel .filter-header {
-    padding: 15px;
-    position: sticky;
-    top: 0;
-    z-index: 1;
-  }
-
-  .filter-panel .collapse-icon {
-    font-size: 1.2rem;
-  }
-
-  /* Map takes full width */
-  .map-wrapper {
-    width: 100%;
-  }
-
-  .map-container {
-    min-height: 50vh;
-  }
-
-  /* Time slider compact */
-  .time-slider {
-    flex-wrap: wrap;
-    padding: 8px 12px;
-    gap: 10px;
-  }
-
-  .time-controls {
-    order: 1;
-  }
-
-  .slider-container {
-    order: 3;
-    width: 100%;
-  }
-
-  .window-control {
-    order: 2;
-    margin-left: auto;
-  }
-
-  .window-control label {
-    display: none;
-  }
-
-  /* Alerts */
-  .alerts-container {
-    top: 60px;
-    right: 10px;
-    left: 10px;
-    max-width: none;
-  }
-
-  .alert-item {
-    padding: 10px 12px;
-    font-size: 0.85rem;
-  }
-
-  /* Risk banner mobile */
-  .risk-banner {
-    flex-wrap: wrap;
-    padding: 8px 12px;
-    gap: 8px;
-  }
-
-  .risk-icon {
-    font-size: 1.2rem;
-  }
-
-  .risk-content {
-    flex: 1;
-    min-width: 0;
-  }
-
-  .risk-content strong {
-    font-size: 0.8rem;
-  }
-
-  .risk-content span {
-    font-size: 0.7rem;
-    display: block;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  .risk-stat {
-    display: none;
-  }
-
-  .risk-source {
-    font-size: 0.65rem;
-    padding: 3px 8px;
-  }
-}
-
-/* Scrollbar styling */
-::-webkit-scrollbar {
-  width: 8px;
-}
-
-::-webkit-scrollbar-track {
-  background: var(--bg-primary);
-}
-
-::-webkit-scrollbar-thumb {
-  background: var(--accent);
-  border-radius: 4px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: var(--accent-hover);
-}
-
-/* =============================================================================
-   FWI Panel Styles
-   ============================================================================= */
-
-.fwi-panel {
-  width: 280px;
-  background: var(--bg-secondary);
-  border-left: 1px solid var(--accent);
-  display: flex;
-  flex-direction: column;
-  overflow-y: auto;
-  transition: width 0.3s;
-}
-
-.fwi-panel.collapsed {
-  width: 50px;
-}
-
-.fwi-panel.loading {
-  opacity: 0.7;
-}
-
-.fwi-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 12px 15px;
-  background: var(--bg-tertiary);
-  cursor: pointer;
-  border-bottom: 1px solid rgba(233, 69, 96, 0.3);
-}
-
-.fwi-header h3 {
-  color: var(--text-primary);
-  font-size: 0.9rem;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.fwi-badge {
-  padding: 3px 8px;
-  border-radius: 12px;
-  font-size: 0.7rem;
-  color: white;
-  font-weight: 600;
-}
-
-.fwi-loading {
-  padding: 20px;
-  text-align: center;
-  color: var(--text-secondary);
-}
-
-.fwi-content {
-  padding: 15px;
-  display: flex;
-  flex-direction: column;
-  gap: 15px;
-}
-
-.fwi-city-select select {
-  width: 100%;
-  padding: 8px 10px;
-  background: var(--bg-primary);
-  border: 1px solid rgba(233, 69, 96, 0.3);
-  border-radius: 6px;
-  color: var(--text-primary);
-  font-size: 0.85rem;
-}
-
-/* Main FWI Display */
-.fwi-main {
-  text-align: center;
-  padding: 15px;
-  background: var(--bg-tertiary);
-  border-radius: 8px;
-}
-
-.fwi-value {
-  font-size: 3rem;
-  font-weight: 700;
-  line-height: 1;
-}
-
-.fwi-label {
-  font-size: 0.75rem;
-  color: var(--text-secondary);
-  text-transform: uppercase;
-  letter-spacing: 1px;
-  margin-top: 5px;
-}
-
-.fwi-bar-container {
-  height: 8px;
-  background: var(--bg-primary);
-  border-radius: 4px;
-  margin: 12px 0;
-  overflow: hidden;
-}
-
-.fwi-bar {
-  height: 100%;
-  border-radius: 4px;
-  transition: width 0.5s ease;
-}
-
-.fwi-spread {
-  font-size: 0.8rem;
-  color: var(--text-secondary);
   font-style: italic;
+  margin-bottom: 8px !important;
 }
 
-/* Weather Display */
-.fwi-weather {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
-}
-
-.weather-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 10px;
-  background: var(--bg-tertiary);
-  border-radius: 6px;
-}
-
-.weather-icon {
-  font-size: 1.1rem;
-}
-
-.weather-value {
-  font-size: 0.85rem;
-  color: var(--text-primary);
-  font-weight: 500;
-}
-
-/* FWI Components */
-.fwi-components h4 {
+.fire-duration {
+  background: rgba(233, 69, 96, 0.1);
+  border-left: 3px solid var(--accent);
+  padding: 6px 8px;
+  margin: 6px 0 !important;
   font-size: 0.8rem;
   color: var(--text-secondary);
-  margin-bottom: 10px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
 }
 
-.component-group {
-  margin-bottom: 12px;
+.fire-wind-info {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-.component-label {
-  font-size: 0.7rem;
-  color: var(--accent);
-  margin-bottom: 8px;
-  text-transform: uppercase;
+.fire-wind-warning {
+  color: #f97316 !important;
+  font-weight: bold;
+  font-size: 0.8rem;
 }
 
-.component-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 6px;
+.fire-emergency-tip {
+  margin-top: 10px;
+  padding: 8px;
+  background: rgba(220, 38, 38, 0.15);
+  border: 1px solid rgba(220, 38, 38, 0.4);
+  border-radius: 6px;
+  font-size: 0.8rem;
+  color: #fca5a5;
+  text-align: center;
 }
 
-.component-name {
-  width: 40px;
-  font-size: 0.75rem;
-  color: var(--text-secondary);
-  cursor: help;
-}
-
-.component-bar-bg {
-  flex: 1;
-  height: 6px;
-  background: var(--bg-primary);
-  border-radius: 3px;
-  overflow: hidden;
-}
-
-.component-bar {
-  height: 100%;
-  border-radius: 3px;
-  transition: width 0.3s ease;
-}
-
-.component-value {
-  width: 35px;
-  font-size: 0.75rem;
-  color: var(--text-primary);
-  text-align: right;
-}
-
-/* FWI Legend */
-.fwi-legend {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  padding-top: 10px;
-  border-top: 1px solid rgba(233, 69, 96, 0.2);
-}
-
-.legend-item {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 0.65rem;
-  color: var(--text-secondary);
-}
-
-.legend-color {
-  width: 10px;
-  height: 10px;
-  border-radius: 2px;
-}
-
-/* Responsive for FWI Panel */
-@media (max-width: 1200px) {
-  .fwi-panel {
-    position: absolute;
-    right: 0;
-    top: 0;
-    height: 100%;
-    z-index: 1001;
-    box-shadow: -2px 0 10px rgba(0, 0, 0, 0.3);
-  }
-
-  .fwi-panel.collapsed {
-    width: 40px;
-  }
-}
-
-@media (max-width: 768px) {
-  .fwi-panel {
-    width: 100%;
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    top: auto;
-    height: auto;
-    max-height: 60vh;
-    border-left: none;
-    border-top: 2px solid var(--accent);
-    border-radius: 16px 16px 0 0;
-    z-index: 1002;
-  }
-
-  .fwi-panel.collapsed {
-    width: 100%;
-    max-height: 48px;
-  }
-
-  .fwi-header {
-    padding: 12px 15px;
-    border-radius: 16px 16px 0 0;
-  }
-
-  .fwi-header h3 {
-    font-size: 0.85rem;
-  }
-
-  .fwi-content {
-    padding: 12px;
-    gap: 12px;
-    padding-bottom: 20px;
-  }
-
-  .fwi-main {
-    padding: 12px;
-  }
-
-  .fwi-value {
-    font-size: 2.5rem;
-  }
-
-  .fwi-weather {
-    grid-template-columns: repeat(4, 1fr);
-    gap: 6px;
-  }
-
-  .weather-item {
-    flex-direction: column;
-    gap: 2px;
-    padding: 6px;
-    text-align: center;
-  }
-
-  .weather-icon {
-    font-size: 1rem;
-  }
-
-  .weather-value {
-    font-size: 0.75rem;
-  }
-
-  .fwi-components h4 {
-    font-size: 0.75rem;
-  }
-
-  .fwi-legend {
-    gap: 6px;
-  }
-
-  .legend-item {
-    font-size: 0.6rem;
-  }
-}
-
-/* Wind Arrow Styles */
-.wind-arrow-icon {
-  background: transparent !important;
-  border: none !important;
-}
-
-.wind-arrow-icon svg {
-  transition: transform 0.3s ease;
-}
-
-/* Fire Severity Styles */
-.fire-popup h3 {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-  margin-bottom: 8px;
-}
-
+/* Severity badges */
 .severity-badge {
   font-size: 10px;
   padding: 2px 6px;
@@ -1094,20 +504,64 @@ html, body, #root {
   color: white;
 }
 
-.fire-duration {
-  background: rgba(233, 69, 96, 0.1);
-  border-left: 3px solid var(--accent);
-  padding: 8px;
-  margin: 8px 0;
-  font-size: 12px;
+/* New fire marker pulse */
+@keyframes new-fire-pulse {
+  0%, 100% { stroke-opacity: 1; stroke-width: 2; }
+  50% { stroke-opacity: 0.4; stroke-width: 3; }
 }
 
-.fire-duration small {
-  color: #888;
+.new-fire-marker.leaflet-interactive {
+  animation: new-fire-pulse 2s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .new-fire-marker.leaflet-interactive {
+    animation: none;
+  }
+}
+
+/* Region tooltip */
+.region-tooltip {
+  background: var(--bg-secondary) !important;
+  border: 1px solid var(--accent) !important;
+  color: var(--text-primary) !important;
+  font-size: 0.8rem;
+  padding: 5px 10px !important;
+  border-radius: 4px !important;
+}
+
+/* Wind arrow */
+.wind-arrow {
+  background: transparent !important;
+  border: none !important;
+}
+
+.wind-arrow-icon {
+  background: transparent !important;
+  border: none !important;
+}
+
+.wind-arrow-icon svg {
+  transition: transform 0.3s ease;
+}
+
+/* Loading Overlay */
+.loading-overlay {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(22, 33, 62, 0.95);
+  padding: 20px 40px;
+  border-radius: 8px;
+  border: 1px solid var(--accent);
+  color: var(--text-primary);
+  z-index: 1000;
+  font-size: 0.95rem;
 }
 
 /* =============================================================================
-   Risk Banner Styles (Peak Hours & Botón Rojo)
+   Risk Banner Styles
    ============================================================================= */
 
 .risk-banner {
@@ -1175,103 +629,237 @@ html, body, #root {
   white-space: nowrap;
 }
 
-.risk-source {
-  font-size: 0.8rem;
-  color: rgba(255, 255, 255, 0.9);
-  background: rgba(0, 0, 0, 0.25);
-  padding: 4px 12px;
-  border-radius: 12px;
-  white-space: nowrap;
-}
-
 /* =============================================================================
-   Major Fire Pulse Animation
+   FWI Panel Styles
    ============================================================================= */
 
-@keyframes firePulse {
-  0% {
-    box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.7);
-  }
-  70% {
-    box-shadow: 0 0 0 15px rgba(220, 38, 38, 0);
-  }
-  100% {
-    box-shadow: 0 0 0 0 rgba(220, 38, 38, 0);
-  }
-}
-
-/* Regional Risk Indicator in Filter Panel */
-.region-risk-indicator {
-  display: inline-block;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  margin-left: 6px;
-}
-
-.region-risk-indicator.critical {
-  background: #dc2626;
-  box-shadow: 0 0 4px #dc2626;
-}
-
-.region-risk-indicator.high {
-  background: #f97316;
-  box-shadow: 0 0 4px #f97316;
-}
-
-.region-risk-indicator.elevated {
-  background: #eab308;
-}
-
-.region-risk-indicator.moderate {
-  background: #22c55e;
-}
-
-/* Fire Popup Regional Risk */
-.popup-region-risk {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 2px 8px;
-  border-radius: 4px;
-  font-size: 0.7rem;
-  margin-left: 8px;
-}
-
-.popup-region-risk.critical {
-  background: rgba(220, 38, 38, 0.2);
-  color: #dc2626;
-  border: 1px solid #dc2626;
-}
-
-.popup-region-risk.high {
-  background: rgba(249, 115, 22, 0.2);
-  color: #f97316;
-  border: 1px solid #f97316;
-}
-
-.popup-region-risk.elevated {
-  background: rgba(234, 179, 8, 0.2);
-  color: #eab308;
-  border: 1px solid #eab308;
-}
-
-/* =============================================================================
-   Info Panel Styles (Quemas Agrícolas)
-   ============================================================================= */
-
-.info-panel {
-  width: 280px;
+.fwi-panel {
   background: var(--bg-secondary);
-  border-left: 1px solid var(--accent);
   display: flex;
   flex-direction: column;
   overflow-y: auto;
-  transition: height 0.3s ease;
+  transition: all 0.3s;
+}
+
+.fwi-panel.collapsed {
+  max-height: 48px;
+  overflow: hidden;
+}
+
+.fwi-panel.loading {
+  opacity: 0.7;
+}
+
+.fwi-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 15px;
+  background: var(--bg-tertiary);
+  cursor: pointer;
+  border-bottom: 1px solid rgba(233, 69, 96, 0.3);
+}
+
+.fwi-header h3 {
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.fwi-badge {
+  padding: 3px 8px;
+  border-radius: 12px;
+  font-size: 0.7rem;
+  color: white;
+  font-weight: 600;
+}
+
+.fwi-loading {
+  padding: 20px;
+  text-align: center;
+  color: var(--text-secondary);
+}
+
+.fwi-content {
+  padding: 15px;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.fwi-city-label {
+  display: block;
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
+}
+
+.fwi-city-select select {
+  width: 100%;
+  padding: 8px 10px;
+  background: var(--bg-primary);
+  border: 1px solid rgba(233, 69, 96, 0.3);
+  border-radius: 6px;
+  color: var(--text-primary);
+  font-size: 0.85rem;
+}
+
+/* Main FWI Display */
+.fwi-main {
+  text-align: center;
+  padding: 15px;
+  background: var(--bg-tertiary);
+  border-radius: 8px;
+}
+
+.fwi-value {
+  font-size: 1.8rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.fwi-bar-container {
+  height: 8px;
+  background: var(--bg-primary);
+  border-radius: 4px;
+  margin: 12px 0;
+  overflow: hidden;
+}
+
+.fwi-bar {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.5s ease;
+}
+
+.fwi-summary {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  line-height: 1.4;
+  margin-top: 4px;
+}
+
+/* Weather Display */
+.fwi-weather {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.weather-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 10px;
+  background: var(--bg-tertiary);
+  border-radius: 6px;
+}
+
+.weather-label {
+  font-size: 0.68rem;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.weather-value {
+  font-size: 0.95rem;
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+/* FWI Components */
+.fwi-components h4 {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  margin-bottom: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.component-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.component-name {
+  width: 90px;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  cursor: help;
+}
+
+.component-bar-bg {
+  flex: 1;
+  height: 6px;
+  background: var(--bg-primary);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.component-bar {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+
+.component-value {
+  width: 50px;
+  font-size: 0.72rem;
+  color: var(--text-primary);
+  text-align: right;
+}
+
+/* FWI Legend */
+.fwi-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(233, 69, 96, 0.2);
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.65rem;
+  color: var(--text-secondary);
+}
+
+.legend-color {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+}
+
+.collapse-icon {
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+}
+
+/* =============================================================================
+   Info Panel Styles
+   ============================================================================= */
+
+.info-panel {
+  background: var(--bg-secondary);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  transition: all 0.3s ease;
+  border-bottom: 1px solid rgba(233, 69, 96, 0.2);
 }
 
 .info-panel.collapsed {
-  height: auto;
+  max-height: 48px;
   overflow: hidden;
 }
 
@@ -1280,8 +868,8 @@ html, body, #root {
   align-items: center;
   justify-content: space-between;
   padding: 12px 15px;
-  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
-  border-bottom: 1px solid rgba(245, 158, 11, 0.3);
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  border-bottom: 1px solid rgba(37, 99, 235, 0.3);
   cursor: pointer;
   user-select: none;
 }
@@ -1327,7 +915,12 @@ html, body, #root {
   color: var(--text-secondary);
   font-size: 0.75rem;
   line-height: 1.5;
-  margin: 0 0 8px 0;
+  margin: 0 0 6px 0;
+}
+
+.info-note {
+  font-style: italic;
+  opacity: 0.8;
 }
 
 .info-section ul {
@@ -1339,11 +932,70 @@ html, body, #root {
   color: var(--text-secondary);
   font-size: 0.75rem;
   line-height: 1.5;
-  margin-bottom: 6px;
+  margin-bottom: 4px;
 }
 
 .info-section li strong {
   color: var(--text-primary);
+}
+
+.action-list li {
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+/* Emergency Numbers */
+.emergency-numbers {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.emergency-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 10px 8px;
+  border-radius: 8px;
+  text-decoration: none;
+  transition: transform 0.2s, opacity 0.2s;
+  cursor: pointer;
+}
+
+.emergency-item:hover {
+  transform: scale(1.05);
+  opacity: 0.9;
+}
+
+.emergency-item.bomberos {
+  background: linear-gradient(135deg, #dc2626, #b91c1c);
+}
+
+.emergency-item.ambulancia {
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+}
+
+.emergency-item.carabineros {
+  background: linear-gradient(135deg, #059669, #047857);
+}
+
+.emergency-item.conaf {
+  background: linear-gradient(135deg, #d97706, #b45309);
+}
+
+.emergency-number {
+  color: white;
+  font-size: 1.5rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.emergency-label {
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-top: 2px;
 }
 
 /* Info table */
@@ -1354,6 +1006,7 @@ html, body, #root {
   background: rgba(233, 69, 96, 0.1);
   border-radius: 6px;
   overflow: hidden;
+  margin: 6px 0;
 }
 
 .info-table-row {
@@ -1375,7 +1028,7 @@ html, body, #root {
 
 .info-table-row strong {
   color: var(--text-primary);
-  min-width: 50px;
+  min-width: 40px;
 }
 
 .info-table-row span {
@@ -1385,7 +1038,7 @@ html, body, #root {
 /* Info links */
 .info-link {
   display: block;
-  color: #22c55e;
+  color: #60a5fa;
   text-decoration: none;
   font-size: 0.75rem;
   padding: 6px 8px;
@@ -1404,39 +1057,47 @@ html, body, #root {
   margin-bottom: 0;
 }
 
-@media (max-width: 768px) {
-  .info-panel {
-    width: 100%;
-    max-width: 100%;
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    top: auto;
-    height: auto;
-    max-height: 70vh;
-    border-left: none;
-    border-top: 2px solid #f59e0b;
-    border-radius: 16px 16px 0 0;
-    z-index: 1004;
-    overflow-y: auto;
-  }
+/* =============================================================================
+   Quemas Agricolas Panel
+   ============================================================================= */
 
-  .info-header {
-    border-radius: 16px 16px 0 0;
-    position: sticky;
-    top: 0;
-    z-index: 1;
-  }
+.quemas-panel {
+  background: var(--bg-secondary);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  transition: all 0.3s ease;
+  border-bottom: 1px solid rgba(233, 69, 96, 0.2);
+}
 
-  .info-table-row {
-    flex-direction: column;
-    gap: 2px;
-  }
+.quemas-panel.collapsed {
+  max-height: 48px;
+  overflow: hidden;
+}
+
+.quemas-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 15px;
+  background: linear-gradient(135deg, #d97706 0%, #b45309 100%);
+  border-bottom: 1px solid rgba(217, 119, 6, 0.3);
+  cursor: pointer;
+  user-select: none;
+}
+
+.quemas-header h3 {
+  color: white;
+  font-size: 0.85rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  flex: 1;
 }
 
 /* =============================================================================
-   Footer Styles
+   Footer
    ============================================================================= */
 
 .app-footer {
@@ -1456,7 +1117,193 @@ html, body, #root {
   font-weight: 500;
 }
 
-/* Additional mobile overrides at end of file */
+/* =============================================================================
+   Scrollbar
+   ============================================================================= */
+
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-primary);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--accent);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--accent-hover);
+}
+
+/* =============================================================================
+   Mobile Responsive
+   ============================================================================= */
+
+@media (max-width: 768px) {
+  /* Header */
+  .header {
+    padding: 8px 12px;
+    gap: 8px;
+  }
+
+  .header h1 {
+    font-size: 0.95rem;
+  }
+
+  .header-left {
+    gap: 10px;
+  }
+
+  .header-right {
+    gap: 8px;
+  }
+
+  .status-badges {
+    display: none;
+  }
+
+  .status-text {
+    display: none;
+  }
+
+  .header-controls {
+    gap: 4px;
+  }
+
+  .header-controls button {
+    padding: 6px 8px;
+    font-size: 0.9rem;
+  }
+
+  /* Main content stacks vertically on mobile */
+  .main-content {
+    flex-direction: column;
+  }
+
+  /* Map takes full width */
+  .map-wrapper {
+    width: 100%;
+    min-height: 50vh;
+  }
+
+  /* Side panels stack below map */
+  .side-panels {
+    width: 100%;
+    border-left: none;
+    border-top: 1px solid rgba(233, 69, 96, 0.3);
+    max-height: 50vh;
+    overflow-y: auto;
+  }
+
+  /* Time slider compact */
+  .time-slider {
+    flex-wrap: wrap;
+    padding: 8px 12px;
+    gap: 10px;
+  }
+
+  .time-controls {
+    order: 1;
+  }
+
+  .slider-container {
+    order: 3;
+    width: 100%;
+  }
+
+  .window-control {
+    order: 2;
+    margin-left: auto;
+  }
+
+  .window-control label {
+    display: none;
+  }
+
+  /* Alerts */
+  .alerts-container {
+    top: 60px;
+    right: 10px;
+    left: 10px;
+    max-width: none;
+  }
+
+  .alert-item {
+    padding: 10px 12px;
+    font-size: 0.85rem;
+  }
+
+  /* Risk banner mobile */
+  .risk-banner {
+    flex-wrap: wrap;
+    padding: 8px 12px;
+    gap: 8px;
+  }
+
+  .risk-icon {
+    font-size: 1.2rem;
+  }
+
+  .risk-content {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .risk-content strong {
+    font-size: 0.8rem;
+  }
+
+  .risk-content span {
+    font-size: 0.7rem;
+    display: block;
+  }
+
+  /* Map legend adjusts */
+  .map-legend {
+    bottom: 20px;
+    left: 8px;
+    padding: 8px 10px;
+  }
+
+  .map-legend-item {
+    font-size: 0.7rem;
+  }
+
+  /* Emergency numbers 2x2 grid stays on mobile */
+  .emergency-numbers {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  /* Info table responsive */
+  .info-table-row {
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  /* FWI weather 4-col on mobile */
+  .fwi-weather {
+    grid-template-columns: repeat(4, 1fr);
+    gap: 4px;
+  }
+
+  .weather-item {
+    padding: 6px;
+    text-align: center;
+    align-items: center;
+  }
+
+  .weather-label {
+    font-size: 0.6rem;
+  }
+
+  .weather-value {
+    font-size: 0.8rem;
+  }
+}
+
 @media (max-width: 480px) {
   .header h1 {
     font-size: 0.85rem;
@@ -1465,10 +1312,6 @@ html, body, #root {
   .header-controls button {
     padding: 5px 6px;
     font-size: 0.85rem;
-  }
-
-  .filter-panel {
-    width: 100%;
   }
 
   .fwi-weather {

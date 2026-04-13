@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo, Suspense, lazy } from 'react'
-import FilterPanel from './FilterPanel'
 import TimeSlider from './TimeSlider'
 import FWIPanel from './FWIPanel'
 import InfoPanel from './InfoPanel'
+import QuemasPanel from './QuemasPanel'
 import './App.css'
 
 // Check if mobile on initial render
@@ -11,28 +11,28 @@ const isMobileDevice = () => window.innerWidth <= 768
 // Lazy load heavy Map component (Leaflet is large)
 const Map = lazy(() => import('./Map'))
 
-// Initial filter state (defined outside component to avoid recreation)
-const INITIAL_FILTERS = {
-  source: 'all',
-  confidence: 'all',
-  intensity: 'all',
-  daynight: 'all',
-  region: 'all',
-  minFrp: 0,
-  maxFrp: 0
-}
-
-// Regional risk levels based on CONAF historical data (using Chilean region codes)
-const REGIONAL_RISK = {
-  'IX': { level: 'critical', label: 'Critico' },      // La Araucanía
-  'VIII': { level: 'high', label: 'Alto' },           // Biobío
-  'VII': { level: 'high', label: 'Alto' },            // Maule
-  'V': { level: 'elevated', label: 'Elevado' },       // Valparaíso
-  'VI': { level: 'elevated', label: 'Elevado' },      // O'Higgins
-  'RM': { level: 'moderate', label: 'Moderado' },     // Metropolitana
-  'XVI': { level: 'elevated', label: 'Elevado' },     // Ñuble
-  'IV': { level: 'moderate', label: 'Moderado' },     // Coquimbo
-}
+// Map legend — lightweight, rendered over the map
+const MapLegend = () => (
+  <div className="map-legend">
+    <div className="map-legend-title">Focos de incendio</div>
+    <div className="map-legend-item">
+      <span className="map-legend-dot" style={{ backgroundColor: '#dc2626' }} />
+      <span>Grave</span>
+    </div>
+    <div className="map-legend-item">
+      <span className="map-legend-dot" style={{ backgroundColor: '#f97316' }} />
+      <span>Importante</span>
+    </div>
+    <div className="map-legend-item">
+      <span className="map-legend-dot" style={{ backgroundColor: '#eab308' }} />
+      <span>Moderado</span>
+    </div>
+    <div className="map-legend-item">
+      <span className="map-legend-dot" style={{ backgroundColor: '#22c55e' }} />
+      <span>Menor</span>
+    </div>
+  </div>
+)
 
 // Check if current time is in peak fire hours (Chilean time)
 function isPeakFireHours() {
@@ -59,7 +59,6 @@ function App() {
   const [error, setError] = useState(() => null)
   const [lastUpdated, setLastUpdated] = useState(() => null)
   const [theme, setTheme] = useState(() => {
-    // Persist theme preference
     if (typeof window !== 'undefined') {
       return localStorage.getItem('theme') || 'dark'
     }
@@ -70,11 +69,8 @@ function App() {
   const [showVegetation, setShowVegetation] = useState(() => false)
   const [wsConnected, setWsConnected] = useState(() => false)
   const [alerts, setAlerts] = useState(() => [])
-  const [filters, setFilters] = useState(() => INITIAL_FILTERS)
   const [timeRange, setTimeRange] = useState(() => ({ min: 0, max: Infinity }))
-  const [regions, setRegions] = useState(() => ({}))
   const [currentHour, setCurrentHour] = useState(() => new Date().getHours())
-  const [mobileFilterOpen, setMobileFilterOpen] = useState(() => false)
   const [isMobile, setIsMobile] = useState(() => isMobileDevice())
 
   const wsRef = useRef(null)
@@ -91,9 +87,7 @@ function App() {
   // Handle window resize for mobile detection
   useEffect(() => {
     const handleResize = () => {
-      const mobile = isMobileDevice()
-      setIsMobile(mobile)
-      if (!mobile) setMobileFilterOpen(false)
+      setIsMobile(isMobileDevice())
     }
     window.addEventListener('resize', handleResize)
     return () => window.removeEventListener('resize', handleResize)
@@ -104,11 +98,9 @@ function App() {
     const peakHours = isPeakFireHours()
     const botonRojoWindow = isBotonRojoWindow()
 
-    // Check if any fire has high wind (≥20 km/h)
     let hasHighWind = false
     let maxWindSpeed = 0
     let majorFiresCount = 0
-    let highRiskRegionFires = 0
 
     if (fires?.features) {
       fires.features.forEach(f => {
@@ -116,36 +108,19 @@ function App() {
         if (props.wind_speed >= 20) hasHighWind = true
         if (props.wind_speed > maxWindSpeed) maxWindSpeed = props.wind_speed
         if (props.severity === 'major' || props.severity === 'significant') majorFiresCount++
-        const region = props.region
-        if (REGIONAL_RISK[region]?.level === 'critical' || REGIONAL_RISK[region]?.level === 'high') {
-          highRiskRegionFires++
-        }
       })
     }
 
-    // Botón Rojo lite: peak window + high wind
     const botonRojo = botonRojoWindow && hasHighWind
 
-    return {
-      peakHours,
-      botonRojoWindow,
-      botonRojo,
-      hasHighWind,
-      maxWindSpeed,
-      majorFiresCount,
-      highRiskRegionFires
-    }
+    return { peakHours, botonRojo, hasHighWind, maxWindSpeed, majorFiresCount }
   }, [fires, currentHour])
 
-  // Request notification permission and fetch regions
+  // Request notification permission
   useEffect(() => {
     if ('Notification' in window && Notification.permission === 'default') {
       Notification.requestPermission()
     }
-    fetch('/api/regions')
-      .then(res => res.json())
-      .then(data => setRegions(data))
-      .catch(err => console.error('Regions fetch error:', err))
   }, [])
 
   // WebSocket connection
@@ -233,46 +208,15 @@ function App() {
     return () => clearTimeout(timeout)
   }, [fires])
 
-  // Extract filter values as primitives for stable dependencies
-  const { source, confidence, intensity, daynight, region, minFrp, maxFrp } = filters
   const { min: timeMin, max: timeMax } = timeRange
 
-  // Use useMemo for filtered fires to avoid unnecessary recalculations
+  // Filter fires by time range only
   const computedFilteredFires = useMemo(() => {
     if (!fires?.features) return null
 
     const filtered = fires.features.filter(f => {
       const p = f.properties
-
-      // Source filter
-      if (source !== 'all') {
-        if (!p.satellite.toUpperCase().includes(source.toUpperCase())) return false
-      }
-
-      // Confidence filter
-      if (confidence !== 'all') {
-        const conf = p.confidence.toLowerCase()
-        if (confidence === 'high' && conf !== 'h' && conf !== 'high') return false
-        if (confidence === 'nominal' && conf !== 'n' && conf !== 'nominal') return false
-        if (confidence === 'low' && conf !== 'l' && conf !== 'low') return false
-      }
-
-      // Intensity filter
-      if (intensity !== 'all' && p.intensity !== intensity) return false
-
-      // Day/Night filter
-      if (daynight !== 'all' && p.daynight !== daynight) return false
-
-      // Region filter
-      if (region !== 'all' && p.region !== region) return false
-
-      // FRP filter
-      if (minFrp > 0 && p.frp < minFrp) return false
-      if (maxFrp > 0 && p.frp > maxFrp) return false
-
-      // Time range filter
       if (p.timestamp < timeMin || p.timestamp > timeMax) return false
-
       return true
     })
 
@@ -281,7 +225,7 @@ function App() {
       features: filtered,
       metadata: { ...fires.metadata, totalCount: filtered.length }
     }
-  }, [fires, source, confidence, intensity, daynight, region, minFrp, maxFrp, timeMin, timeMax])
+  }, [fires, timeMin, timeMax])
 
   // Sync filtered fires state with computed value
   useEffect(() => {
@@ -300,38 +244,21 @@ function App() {
     setAlerts(prev => prev.filter((_, i) => i !== index))
   }, [])
 
-  const handleExport = useCallback((format) => {
-    window.open(`/api/export?format=${format}`, '_blank')
-  }, [])
-
   const getStatusText = useCallback(() => {
     if (loading && !fires) return 'Cargando datos...'
     if (error) return `Error: ${error}`
-    if (filteredFires) {
-      const total = fires?.features?.length || 0
-      const filtered = filteredFires.features?.length || 0
+    if (fires?.features) {
+      const total = fires.features.length
       const time = lastUpdated?.toLocaleTimeString('es-CL') || ''
-      if (filtered !== total) {
-        return `${filtered} de ${total} focos · ${time}`
-      }
-      return `${total} focos activos · ${time}`
+      return `${total} focos detectados · Actualizado ${time}`
     }
     return 'Sin datos'
-  }, [loading, fires, error, filteredFires, lastUpdated])
+  }, [loading, fires, error, lastUpdated])
 
   return (
     <div className={`app-container ${theme}`}>
       <header className="header">
         <div className="header-left">
-          {isMobile && (
-            <button
-              className="mobile-menu-btn"
-              onClick={() => setMobileFilterOpen(!mobileFilterOpen)}
-              title="Abrir filtros"
-            >
-              ☰
-            </button>
-          )}
           <h1>Monitor de Incendios{!isMobile && ' - Chile'}</h1>
           <div className="status-badges">
             <span className={`status-badge ${wsConnected ? 'connected' : 'disconnected'}`}>
@@ -345,35 +272,25 @@ function App() {
             <button
               className={`toggle-btn ${showHeatmap ? 'active' : ''}`}
               onClick={() => setShowHeatmap(!showHeatmap)}
-              title="Mapa de calor"
+              title="Ver zonas de mayor concentracion de incendios"
             >
-              {isMobile ? '🔥' : 'Calor'}
+              {isMobile ? '🔥' : 'Mapa de calor'}
             </button>
             <button
               className={`toggle-btn ${showVegetation ? 'active' : ''}`}
               onClick={() => setShowVegetation(!showVegetation)}
-              title="Capa de vegetacion (ESA WorldCover)"
+              title="Muestra zonas con vegetacion que pueden arder"
             >
               {isMobile ? '🌿' : 'Vegetacion'}
             </button>
             <button
               className={`toggle-btn ${showClusters ? 'active' : ''}`}
               onClick={() => setShowClusters(!showClusters)}
-              title="Agrupar marcadores"
+              title="Agrupa focos cercanos para ver mejor el mapa"
             >
-              {isMobile ? '⊕' : 'Clusters'}
+              {isMobile ? '⊕' : 'Agrupar'}
             </button>
-            {!isMobile && (
-              <>
-                <button className="export-btn" onClick={() => handleExport('csv')} title="Exportar CSV">
-                  CSV
-                </button>
-                <button className="export-btn" onClick={() => handleExport('geojson')} title="Exportar GeoJSON">
-                  GeoJSON
-                </button>
-              </>
-            )}
-            <button className="theme-btn" onClick={toggleTheme} title="Cambiar tema">
+            <button className="theme-btn" onClick={toggleTheme} title="Cambiar tema claro/oscuro">
               {theme === 'dark' ? '☀️' : '🌙'}
             </button>
           </div>
@@ -398,44 +315,30 @@ function App() {
         <div className="risk-banner boton-rojo">
           <span className="risk-icon">🚨</span>
           <div className="risk-content">
-            <strong>ALERTA BOTON ROJO</strong>
-            <span>Ventana de riesgo activa (14:00-19:00) + Vientos fuertes ({riskIndicators.maxWindSpeed.toFixed(0)} km/h)</span>
+            <strong>ALERTA: CONDICIONES EXTREMAS DE INCENDIO</strong>
+            <span>Horario de mayor riesgo (14:00-19:00) con vientos fuertes de {riskIndicators.maxWindSpeed.toFixed(0)} km/h. Extreme precaucion.</span>
           </div>
-          <span className="risk-source">Basado en criterios CONAF</span>
+          {riskIndicators.majorFiresCount > 0 && (
+            <span className="risk-stat">{riskIndicators.majorFiresCount} incendios graves activos</span>
+          )}
         </div>
       )}
 
-      {/* Peak Hours Warning (only if not already showing Botón Rojo) */}
+      {/* Peak Hours Warning */}
       {!riskIndicators.botonRojo && riskIndicators.peakHours && (
         <div className="risk-banner peak-hours">
           <span className="risk-icon">⚠️</span>
           <div className="risk-content">
-            <strong>HORARIO DE RIESGO ELEVADO</strong>
-            <span>13:00-19:00 hrs - Periodo historico de mayor ocurrencia de incendios</span>
+            <strong>HORARIO DE MAYOR RIESGO</strong>
+            <span>Entre las 13:00 y 19:00 hrs ocurren la mayoria de los incendios forestales</span>
           </div>
           {riskIndicators.majorFiresCount > 0 && (
-            <span className="risk-stat">{riskIndicators.majorFiresCount} incendios mayores activos</span>
+            <span className="risk-stat">{riskIndicators.majorFiresCount} incendios graves activos</span>
           )}
-          <span className="risk-source">Fuente: Estadisticas CONAF</span>
         </div>
       )}
 
       <div className="main-content">
-        {/* Mobile overlay */}
-        {isMobile && mobileFilterOpen && (
-          <div className="mobile-overlay" onClick={() => setMobileFilterOpen(false)} />
-        )}
-
-        <FilterPanel
-          filters={filters}
-          setFilters={setFilters}
-          regions={regions}
-          sources={fires?.metadata?.sources || []}
-          isMobile={isMobile}
-          isOpen={mobileFilterOpen}
-          onClose={() => setMobileFilterOpen(false)}
-        />
-
         <div className="map-wrapper">
           {fires && (
             <TimeSlider
@@ -445,7 +348,7 @@ function App() {
           )}
           <div className="map-container">
             {loading && !fires && (
-              <div className="loading-overlay">Cargando datos de NASA FIRMS...</div>
+              <div className="loading-overlay">Cargando datos satelitales...</div>
             )}
             <Suspense fallback={<div className="loading-overlay">Cargando mapa...</div>}>
               <Map
@@ -456,11 +359,15 @@ function App() {
                 showVegetation={showVegetation}
               />
             </Suspense>
+            {!showHeatmap && <MapLegend />}
           </div>
         </div>
 
-        <InfoPanel />
-        <FWIPanel isMobile={isMobile} />
+        <div className="side-panels">
+          <InfoPanel />
+          <FWIPanel isMobile={isMobile} />
+          <QuemasPanel />
+        </div>
       </div>
 
       <footer className="app-footer">

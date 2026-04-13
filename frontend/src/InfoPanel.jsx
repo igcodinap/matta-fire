@@ -1,85 +1,98 @@
 import { useState } from 'react'
 
 function InfoPanel() {
-  const [collapsed, setCollapsed] = useState(true) // Collapsed by default
+  const [collapsed, setCollapsed] = useState(false) // Open by default — important info
 
   return (
     <div className={`info-panel ${collapsed ? 'collapsed' : ''}`}>
       <div className="info-header" onClick={() => setCollapsed(!collapsed)}>
         <h3>
-          <span className="info-icon">📋</span>
-          <span>Quemas Agrícolas</span>
+          <span className="info-icon">ℹ️</span>
+          <span>Informacion y Emergencias</span>
         </h3>
-        <span className="info-toggle-icon">{collapsed ? '▲' : '▼'}</span>
+        <span className="info-toggle-icon">{collapsed ? '▶' : '▼'}</span>
       </div>
 
       {!collapsed && (
       <div className="info-content">
-        <section className="info-section">
-          <h4>🔥 Calendario de Quemas CONAF 2025–2026</h4>
-          <p>
-            CONAF autoriza la quema controlada de residuos agrícolas (rastrojos)
-            en períodos específicos por zona para prevenir incendios forestales.
-          </p>
-
-          <div className="info-table">
-            <div className="info-table-row header">
-              <span>Zona</span>
-              <span>Período Autorizado</span>
-              <span>Regiones</span>
-            </div>
-            <div className="info-table-row">
-              <strong>Norte</strong>
-              <span>Oct 2025 – Abr 2026</span>
-              <span>Arica → Metropolitana</span>
-            </div>
-            <div className="info-table-row">
-              <strong>Sur</strong>
-              <span>Mar 2026 – Nov 2026</span>
-              <span>O'Higgins → Magallanes</span>
-            </div>
+        {/* Emergency Numbers — most important, always first */}
+        <section className="info-section emergency-section">
+          <h4>Numeros de Emergencia</h4>
+          <div className="emergency-numbers">
+            <a href="tel:130" className="emergency-item bomberos">
+              <span className="emergency-number">130</span>
+              <span className="emergency-label">Bomberos</span>
+            </a>
+            <a href="tel:131" className="emergency-item ambulancia">
+              <span className="emergency-number">131</span>
+              <span className="emergency-label">Ambulancia</span>
+            </a>
+            <a href="tel:132" className="emergency-item carabineros">
+              <span className="emergency-number">132</span>
+              <span className="emergency-label">Carabineros</span>
+            </a>
+            <a href="tel:130" className="emergency-item conaf">
+              <span className="emergency-number">130</span>
+              <span className="emergency-label">CONAF Incendios</span>
+            </a>
           </div>
         </section>
 
+        {/* What to do */}
         <section className="info-section">
-          <h4>⚠️ Importante</h4>
-          <ul>
-            <li>
-              <strong>~60% de las quemas autorizadas</strong> ocurren en marzo, abril y mayo,
-              justo después de la cosecha.
-            </li>
-            <li>
-              <strong>Prohibición total</strong> durante diciembre–febrero
-              (temporada crítica de incendios forestales).
-            </li>
-            <li>
-              Todas las quemas requieren <strong>aviso previo a CONAF</strong>
-              y deben cumplir condiciones meteorológicas aprobadas.
-            </li>
-            <li>
-              Las quemas agrícolas son una de las principales causas de
-              incendios forestales que escapan de control en Chile.
-            </li>
+          <h4>Si ve humo o fuego</h4>
+          <ul className="action-list">
+            <li>Llame inmediatamente al <strong>130</strong> (Bomberos)</li>
+            <li>Alejese en direccion contraria al viento</li>
+            <li>No intente apagar el fuego usted mismo</li>
+            <li>Avise a sus vecinos</li>
+            <li>Si esta en su casa, cierre puertas y ventanas</li>
           </ul>
         </section>
 
+        {/* Prevention */}
         <section className="info-section">
-          <h4>🔗 Recursos</h4>
+          <h4>Prevencion</h4>
+          <ul>
+            <li>No haga fogatas en zonas forestales</li>
+            <li>No tire colillas de cigarrillo en el campo</li>
+            <li>No queme basura ni rastrojos sin autorizacion de CONAF</li>
+            <li>En epoca de calor, evite usar herramientas que generen chispas</li>
+          </ul>
+        </section>
+
+        {/* About this app */}
+        <section className="info-section">
+          <h4>Sobre este monitor</h4>
+          <p>
+            Los focos de incendio se detectan por satelites de la NASA (FIRMS)
+            y se actualizan automaticamente cada minuto. Los datos meteorologicos
+            provienen de estaciones de monitoreo en todo Chile.
+          </p>
+          <p className="info-note">
+            Este monitor es informativo. Ante una emergencia real,
+            siempre contacte a Bomberos (130).
+          </p>
+        </section>
+
+        {/* Resources */}
+        <section className="info-section">
+          <h4>Recursos</h4>
           <a
-            href="https://www.conaf.cl/centro-documental/calendario-de-quemas-controladas-zona-norte/"
+            href="https://www.conaf.cl/"
             target="_blank"
             rel="noopener noreferrer"
             className="info-link"
           >
-            📄 Calendario Zona Norte (CONAF)
+            CONAF - Corporacion Nacional Forestal
           </a>
           <a
-            href="https://www.conaf.cl/centro-documental/calendario-de-quemas-controladas-2024-2025-zona-sur/"
+            href="https://www.onemi.gov.cl/"
             target="_blank"
             rel="noopener noreferrer"
             className="info-link"
           >
-            📄 Calendario Zona Sur (CONAF)
+            SENAPRED - Servicio Nacional de Prevencion
           </a>
           <a
             href="https://www.chileatiende.gob.cl/fichas/742-aviso-de-quema-controlada"
@@ -87,7 +100,7 @@ function InfoPanel() {
             rel="noopener noreferrer"
             className="info-link"
           >
-            🏛️ Aviso de Quema Controlada (ChileAtiende)
+            Aviso de Quema Controlada (ChileAtiende)
           </a>
         </section>
       </div>

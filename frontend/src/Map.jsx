@@ -41,17 +41,9 @@ const getRadius = (severity) => {
   }
 }
 
-const getConfidenceLabel = (confidence) => {
-  const conf = String(confidence).toLowerCase()
-  if (conf === 'h' || conf === 'high') return 'Alta'
-  if (conf === 'n' || conf === 'nominal') return 'Nominal'
-  if (conf === 'l' || conf === 'low') return 'Baja'
-  return confidence
-}
-
 const getWindDirectionLabel = (degrees) => {
   if (degrees === undefined || degrees === null) return ''
-  const directions = ['N', 'NE', 'E', 'SE', 'S', 'SO', 'O', 'NO']
+  const directions = ['Norte', 'Noreste', 'Este', 'Sureste', 'Sur', 'Suroeste', 'Oeste', 'Noroeste']
   const index = Math.round(degrees / 45) % 8
   return directions[index]
 }
@@ -67,11 +59,28 @@ const getSeverityIcon = (severity) => {
 
 const getSeverityLabel = (severity) => {
   switch (severity) {
-    case 'major': return 'MAYOR'
-    case 'significant': return 'SIGNIFICATIVO'
-    case 'moderate': return 'MODERADO'
-    default: return 'MENOR'
+    case 'major': return 'Grave'
+    case 'significant': return 'Importante'
+    case 'moderate': return 'Moderado'
+    default: return 'Menor'
   }
+}
+
+const getSeverityDescription = (severity) => {
+  switch (severity) {
+    case 'major': return 'Incendio de gran magnitud. Alejese de la zona.'
+    case 'significant': return 'Incendio importante. Mantengase alerta.'
+    case 'moderate': return 'Foco moderado detectado por satelite.'
+    default: return 'Foco menor detectado por satelite.'
+  }
+}
+
+const formatDetectionTime = (timestamp) => {
+  if (!timestamp) return 'Desconocido'
+  const date = new Date(timestamp * 1000)
+  return date.toLocaleString('es-CL', {
+    day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'
+  })
 }
 
 // Heatmap Layer Component — now uses deduplicated fires
@@ -177,10 +186,8 @@ const fireIcon = (severity, isNew, cluster) => {
   })
 }
 
-// Reusable popup content (same for CircleMarker and Marker)
+// Reusable popup content — written for civilians
 const FirePopupContent = ({ props, lat, lng }) => {
-  const regionalRisk = getRegionalRisk(props.region)
-
   return (
     <div className="fire-popup">
       <h3>
@@ -189,39 +196,26 @@ const FirePopupContent = ({ props, lat, lng }) => {
           {getSeverityLabel(props.severity)}
         </span>
       </h3>
+      <p className="fire-description">{getSeverityDescription(props.severity)}</p>
       {props.detection_count > 1 && (
         <p className="fire-duration">
-          🕐 Activo desde {props.first_seen} ({props.duration})
-          <br/>
-          <small>Detectado {props.detection_count} veces</small>
+          Activo desde {props.first_seen} ({props.duration})
         </p>
       )}
-      <p><strong>Coordenadas:</strong> {lat.toFixed(4)}, {lng.toFixed(4)}</p>
-      <p><strong>FRP actual:</strong> {props.frp?.toFixed(1) || 'N/A'} MW</p>
-      {props.max_frp > props.frp && (
-        <p><strong>FRP maximo:</strong> {props.max_frp?.toFixed(1)} MW</p>
-      )}
-      <p><strong>Satelite:</strong> {props.satellite}</p>
-      <p>
-        <strong>Region:</strong> {props.region || 'N/A'}
-        {regionalRisk.level !== 'low' && (
-          <span
-            className={`popup-region-risk ${regionalRisk.level}`}
-            title="Clasificacion basada en estadisticas historicas de CONAF (2002-2025)"
-          >
-            {regionalRisk.icon} {regionalRisk.label}
-          </span>
-        )}
-      </p>
-      <p><strong>Dia/Noche:</strong> {props.daynight === 'D' ? 'Dia' : 'Noche'}</p>
+      <p><strong>Region:</strong> {props.region_name || props.region || 'Fuera de Chile'}</p>
+      <p><strong>Detectado:</strong> {formatDetectionTime(props.timestamp)} ({props.daynight === 'D' ? 'de dia' : 'de noche'})</p>
       {props.wind_speed > 0 && (
-        <>
-          <hr style={{margin: '8px 0', borderColor: '#444'}} />
-          <p><strong>🌬️ Viento:</strong> {props.wind_speed?.toFixed(1)} km/h {getWindDirectionLabel(props.wind_direction)}</p>
+        <div className="fire-wind-info">
+          <p><strong>Viento:</strong> {props.wind_speed?.toFixed(0)} km/h hacia el {getWindDirectionLabel(props.wind_direction)}</p>
           {props.wind_speed >= 20 && (
-            <p style={{fontSize: '11px', color: '#f97316', fontWeight: 'bold'}}>⚠️ Viento fuerte - Mayor propagacion</p>
+            <p className="fire-wind-warning">Viento fuerte - el fuego puede propagarse rapidamente</p>
           )}
-        </>
+        </div>
+      )}
+      {(props.severity === 'major' || props.severity === 'significant') && (
+        <div className="fire-emergency-tip">
+          Si ve humo o fuego, llame al <strong>130</strong> (Bomberos)
+        </div>
       )}
     </div>
   )

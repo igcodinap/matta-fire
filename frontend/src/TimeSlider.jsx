@@ -3,7 +3,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react'
 function TimeSlider({ fires, onTimeRangeChange }) {
   const [isPlaying, setIsPlaying] = useState(false)
   const [currentTime, setCurrentTime] = useState(100) // percentage
-  const [windowSize, setWindowSize] = useState(100) // percentage of total range
+  const [windowSize, setWindowSize] = useState('all') // 'all', '24h', '12h', '6h', '1h'
   const intervalRef = useRef(null)
 
   // Calculate time bounds from data
@@ -22,17 +22,32 @@ function TimeSlider({ fires, onTimeRangeChange }) {
     }
   }, [fires])
 
-  // Update time range when slider changes
+  // Convert window size to seconds
+  const getWindowSeconds = (size) => {
+    switch (size) {
+      case '1h': return 3600
+      case '6h': return 6 * 3600
+      case '12h': return 12 * 3600
+      case '24h': return 24 * 3600
+      default: return 0 // 'all'
+    }
+  }
+
+  // Update time range when slider or window changes
   useEffect(() => {
     const range = timeBounds.max - timeBounds.min
-    const windowDuration = (range * windowSize) / 100
     const endTime = timeBounds.min + (range * currentTime) / 100
-    const startTime = endTime - windowDuration
 
-    onTimeRangeChange({
-      min: windowSize === 100 ? 0 : Math.max(startTime, timeBounds.min),
-      max: endTime
-    })
+    if (windowSize === 'all') {
+      onTimeRangeChange({ min: 0, max: endTime })
+    } else {
+      const windowSecs = getWindowSeconds(windowSize)
+      const startTime = endTime - windowSecs
+      onTimeRangeChange({
+        min: Math.max(startTime, timeBounds.min),
+        max: endTime
+      })
+    }
   }, [currentTime, windowSize, timeBounds, onTimeRangeChange])
 
   // Animation
@@ -70,7 +85,7 @@ function TimeSlider({ fires, onTimeRangeChange }) {
   const handleReset = () => {
     setIsPlaying(false)
     setCurrentTime(100)
-    setWindowSize(100)
+    setWindowSize('all')
   }
 
   const formatTime = (timestamp) => {
@@ -86,8 +101,6 @@ function TimeSlider({ fires, onTimeRangeChange }) {
 
   const range = timeBounds.max - timeBounds.min
   const currentEndTime = timeBounds.min + (range * currentTime) / 100
-  const windowDuration = (range * windowSize) / 100
-  const currentStartTime = Math.max(currentEndTime - windowDuration, timeBounds.min)
 
   return (
     <div className="time-slider">
@@ -95,14 +108,14 @@ function TimeSlider({ fires, onTimeRangeChange }) {
         <button
           className={`play-btn ${isPlaying ? 'playing' : ''}`}
           onClick={handlePlayPause}
-          title={isPlaying ? 'Pausar' : 'Reproducir'}
+          title={isPlaying ? 'Pausar' : 'Ver evolucion en el tiempo'}
         >
           {isPlaying ? '⏸' : '▶'}
         </button>
         <button
           className="reset-btn"
           onClick={handleReset}
-          title="Reiniciar"
+          title="Mostrar todo"
         >
           ↺
         </button>
@@ -112,10 +125,7 @@ function TimeSlider({ fires, onTimeRangeChange }) {
         <div className="time-labels">
           <span>{formatTime(timeBounds.min)}</span>
           <span className="current-time">
-            {windowSize < 100
-              ? `${formatTime(currentStartTime)} - ${formatTime(currentEndTime)}`
-              : formatTime(currentEndTime)
-            }
+            {formatTime(currentEndTime)}
           </span>
           <span>{formatTime(timeBounds.max)}</span>
         </div>
@@ -130,16 +140,16 @@ function TimeSlider({ fires, onTimeRangeChange }) {
         />
 
         <div className="window-control">
-          <label>Ventana de tiempo:</label>
+          <label>Mostrar:</label>
           <select
             value={windowSize}
-            onChange={(e) => setWindowSize(parseFloat(e.target.value))}
+            onChange={(e) => setWindowSize(e.target.value)}
           >
-            <option value="100">Todo</option>
-            <option value="50">50%</option>
-            <option value="25">25%</option>
-            <option value="10">10%</option>
-            <option value="5">5%</option>
+            <option value="all">Todo</option>
+            <option value="24h">Ultimas 24 horas</option>
+            <option value="12h">Ultimas 12 horas</option>
+            <option value="6h">Ultimas 6 horas</option>
+            <option value="1h">Ultima hora</option>
           </select>
         </div>
       </div>
