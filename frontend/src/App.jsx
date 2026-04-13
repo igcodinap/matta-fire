@@ -511,7 +511,7 @@ function App() {
           </div>
         </div>
 
-        <InfoPanel isMobile={isMobile} />
+        <InfoPanel />
         <FWIPanel isMobile={isMobile} />
       </div>
 
