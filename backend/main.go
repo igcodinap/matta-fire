@@ -449,12 +449,33 @@ func parseTimestamp(date, timeStr string) int64 {
 
 func determineRegion(lat, lon float64) string {
 	for code, region := range ChileanRegions {
-		bbox := region.Bbox
-		if lon >= bbox[0] && lon <= bbox[2] && lat >= bbox[1] && lat <= bbox[3] {
+		if pointInPolygon(lon, lat, region.Polygon) {
 			return code
 		}
 	}
 	return "unknown"
+}
+
+// pointInPolygon checks if a point (x, y) is inside a polygon using ray casting algorithm
+func pointInPolygon(x, y float64, polygon [][]float64) bool {
+	n := len(polygon)
+	if n < 3 {
+		return false
+	}
+
+	inside := false
+	for i, j := 0, n-1; i < n; j = i {
+		xi, yi := polygon[i][0], polygon[i][1]
+		xj, yj := polygon[j][0], polygon[j][1]
+
+		intersect := ((yi > y) != (yj > y)) &&
+			(x < (xj-xi)*(y-yi)/(yj-yi)+xi)
+		if intersect {
+			inside = !inside
+		}
+	}
+
+	return inside
 }
 
 // =============================================================================
