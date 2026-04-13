@@ -2,7 +2,6 @@ import React, { useState, useEffect, useCallback, useRef, useMemo, Suspense, laz
 import FilterPanel from './FilterPanel'
 import TimeSlider from './TimeSlider'
 import FWIPanel from './FWIPanel'
-import AcopioPanel from './AcopioPanel'
 import InfoPanel from './InfoPanel'
 import './App.css'
 
@@ -512,7 +511,6 @@ function App() {
           </div>
         </div>
 
-        <AcopioPanel isMobile={isMobile} />
         <InfoPanel isMobile={isMobile} />
         <FWIPanel isMobile={isMobile} />
       </div>
