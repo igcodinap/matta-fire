@@ -31,15 +31,17 @@ const getDangerLabel = (dangerClass) => {
   }
 }
 
-function FWIPanel({ isMobile }) {
+function FWIPanel({ isMobile, collapsed: controlledCollapsed, onToggle }) {
   const [fwiData, setFwiData] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
   const [selectedCity, setSelectedCity] = useState('Santiago')
-  const [collapsed, setCollapsed] = useState(isMobile)
+  const [internalCollapsed, setInternalCollapsed] = useState(isMobile)
+  const collapsed = controlledCollapsed ?? internalCollapsed
 
   useEffect(() => {
-    if (isMobile) setCollapsed(true)
-  }, [isMobile])
+    if (isMobile && controlledCollapsed === undefined) setInternalCollapsed(true)
+  }, [isMobile, controlledCollapsed])
 
   useEffect(() => {
     fetchFWI()
@@ -49,17 +51,28 @@ function FWIPanel({ isMobile }) {
 
   const fetchFWI = async () => {
     try {
+      setError(null)
       const res = await fetch('/api/fwi')
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
       const data = await res.json()
       setFwiData(data)
     } catch (err) {
       console.error('FWI fetch error:', err)
+      setError(err.message)
     } finally {
       setLoading(false)
     }
   }
 
   const selectedData = fwiData?.[selectedCity]
+
+  const handleToggle = () => {
+    if (onToggle) {
+      onToggle()
+      return
+    }
+    setInternalCollapsed(prev => !prev)
+  }
 
   const getFWIBarWidth = (fwi) => {
     return Math.min((fwi / 50) * 100, 100)
@@ -97,22 +110,19 @@ function FWIPanel({ isMobile }) {
     }
   }
 
-  if (loading) {
-    return (
-      <div className="fwi-panel loading">
-        <div className="fwi-header">
-          <h3>Riesgo de Incendio</h3>
-        </div>
-        <div className="fwi-loading">Calculando...</div>
-      </div>
-    )
-  }
-
   return (
-    <div className={`fwi-panel ${collapsed ? 'collapsed' : ''}`}>
-      <div className="fwi-header" onClick={() => setCollapsed(!collapsed)}>
+    <div className={`fwi-panel ${collapsed ? 'collapsed' : ''} ${loading ? 'loading' : ''}`}>
+      <button
+        type="button"
+        className="fwi-header panel-header-button"
+        onClick={handleToggle}
+        aria-expanded={!collapsed}
+      >
         <h3>
-          Riesgo de Incendio
+          <span>
+            <span className="panel-title">Riesgo de Incendio</span>
+            <span className="panel-subtitle">{selectedData ? selectedCity : 'Indice meteorologico'}</span>
+          </span>
           {selectedData && (
             <span
               className="fwi-badge"
@@ -122,10 +132,32 @@ function FWIPanel({ isMobile }) {
             </span>
           )}
         </h3>
-        <span className="collapse-icon">{collapsed ? '▶' : '▼'}</span>
-      </div>
+        <span className="panel-header-side">
+          {selectedData && <span className="panel-header-meta">{selectedData.fwi}</span>}
+          <span className="collapse-icon">{collapsed ? '▶' : '▼'}</span>
+        </span>
+      </button>
 
-      {!collapsed && selectedData && (
+      {!collapsed && loading && (
+        <div className="fwi-loading">Calculando indice...</div>
+      )}
+
+      {!collapsed && !loading && error && (
+        <div className="fwi-empty">
+          <strong>No se pudo cargar el indice de riesgo</strong>
+          <span>Revise la conexion con el backend y vuelva a intentar.</span>
+          <button type="button" onClick={fetchFWI}>Reintentar</button>
+        </div>
+      )}
+
+      {!collapsed && !loading && !error && !selectedData && (
+        <div className="fwi-empty">
+          <strong>Sin datos de riesgo disponibles</strong>
+          <span>El panel se actualizara cuando el backend entregue ciudades de referencia.</span>
+        </div>
+      )}
+
+      {!collapsed && !loading && !error && selectedData && (
         <div className="fwi-content">
           {/* City Selector */}
           <div className="fwi-city-select">

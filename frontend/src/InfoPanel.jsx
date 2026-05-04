@@ -1,17 +1,37 @@
 import { useState } from 'react'
 
-function InfoPanel() {
-  const [collapsed, setCollapsed] = useState(false) // Open by default — important info
+function InfoPanel({ collapsed: controlledCollapsed, onToggle }) {
+  const [internalCollapsed, setInternalCollapsed] = useState(false)
+  const collapsed = controlledCollapsed ?? internalCollapsed
+
+  const handleToggle = () => {
+    if (onToggle) {
+      onToggle()
+      return
+    }
+    setInternalCollapsed(prev => !prev)
+  }
 
   return (
     <div className={`info-panel ${collapsed ? 'collapsed' : ''}`}>
-      <div className="info-header" onClick={() => setCollapsed(!collapsed)}>
+      <button
+        type="button"
+        className="info-header panel-header-button"
+        onClick={handleToggle}
+        aria-expanded={!collapsed}
+      >
         <h3>
           <span className="info-icon">ℹ️</span>
-          <span>Informacion y Emergencias</span>
+          <span>
+            <span className="panel-title">Informacion y Emergencias</span>
+            <span className="panel-subtitle">Telefonos y pasos inmediatos</span>
+          </span>
         </h3>
-        <span className="info-toggle-icon">{collapsed ? '▶' : '▼'}</span>
-      </div>
+        <span className="panel-header-side">
+          <span className="panel-header-meta">130</span>
+          <span className="info-toggle-icon">{collapsed ? '▶' : '▼'}</span>
+        </span>
+      </button>
 
       {!collapsed && (
       <div className="info-content">

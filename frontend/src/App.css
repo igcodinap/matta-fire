@@ -210,11 +210,126 @@ html, body, #root {
 
 /* Side panels container (Info + FWI stacked on right) */
 .side-panels {
-  width: 300px;
+  width: clamp(320px, 28vw, 380px);
+  flex-shrink: 0;
   display: flex;
   flex-direction: column;
-  overflow-y: auto;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--bg-secondary);
   border-left: 1px solid rgba(233, 69, 96, 0.3);
+  box-shadow: -12px 0 30px rgba(0, 0, 0, 0.22);
+}
+
+.side-panel-overview {
+  flex: 0 0 auto;
+  padding: 14px;
+  background: linear-gradient(180deg, var(--bg-secondary) 0%, var(--bg-primary) 100%);
+  border-bottom: 1px solid rgba(233, 69, 96, 0.28);
+}
+
+.side-panel-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.side-panel-kicker {
+  display: block;
+  color: var(--text-secondary);
+  font-size: 0.68rem;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  margin-bottom: 2px;
+}
+
+.side-panel-overview h2 {
+  color: var(--text-primary);
+  font-size: 1rem;
+  line-height: 1.2;
+  font-weight: 700;
+}
+
+.side-panel-call {
+  width: 54px;
+  min-width: 54px;
+  height: 44px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #dc2626, #991b1b);
+  color: white;
+  text-decoration: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 8px 22px rgba(220, 38, 38, 0.28);
+}
+
+.side-panel-call span {
+  font-size: 1.15rem;
+  line-height: 1;
+  font-weight: 800;
+}
+
+.side-panel-call small {
+  font-size: 0.56rem;
+  letter-spacing: 0.7px;
+  margin-top: 2px;
+}
+
+.side-panel-status {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 12px;
+}
+
+.side-panel-status-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  color: var(--text-secondary);
+  font-size: 0.76rem;
+}
+
+.side-panel-status-row strong {
+  color: var(--text-primary);
+  font-size: 0.78rem;
+  white-space: nowrap;
+}
+
+.side-panel-status-value {
+  padding: 3px 8px;
+  border-radius: 999px;
+}
+
+.side-panel-status-value.critical {
+  background: rgba(220, 38, 38, 0.18);
+  color: #fecaca;
+}
+
+.side-panel-status-value.warning {
+  background: rgba(251, 191, 36, 0.18);
+  color: #fde68a;
+}
+
+.side-panel-status-value.stable {
+  background: rgba(34, 197, 94, 0.16);
+  color: #bbf7d0;
+}
+
+.light .side-panel-status-value.critical {
+  color: #991b1b;
+}
+
+.light .side-panel-status-value.warning {
+  color: #92400e;
+}
+
+.light .side-panel-status-value.stable {
+  color: #166534;
 }
 
 /* =============================================================================
@@ -633,17 +748,91 @@ html, body, #root {
    FWI Panel Styles
    ============================================================================= */
 
-.fwi-panel {
+.info-panel,
+.fwi-panel,
+.quemas-panel {
   background: var(--bg-secondary);
   display: flex;
   flex-direction: column;
-  overflow-y: auto;
-  transition: all 0.3s;
+  min-height: 0;
+  overflow: hidden;
+  transition: flex-basis 0.24s ease, max-height 0.24s ease;
+  border-bottom: 1px solid rgba(233, 69, 96, 0.2);
 }
 
-.fwi-panel.collapsed {
-  max-height: 48px;
+.info-panel:not(.collapsed),
+.fwi-panel:not(.collapsed),
+.quemas-panel:not(.collapsed) {
+  flex: 1 1 auto;
+}
+
+.info-panel.collapsed,
+.fwi-panel.collapsed,
+.quemas-panel.collapsed {
+  flex: 0 0 56px;
+  max-height: 56px;
+}
+
+.panel-header-button {
+  width: 100%;
+  min-height: 56px;
+  border: 0;
+  border-radius: 0;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  appearance: none;
+}
+
+.panel-header-button:focus-visible {
+  outline: 2px solid var(--accent-hover);
+  outline-offset: -2px;
+}
+
+.panel-header-button h3 {
+  min-width: 0;
+}
+
+.panel-title,
+.panel-subtitle {
+  display: block;
+}
+
+.panel-title {
+  line-height: 1.15;
+}
+
+.panel-subtitle {
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 0.68rem;
+  font-weight: 500;
+  margin-top: 3px;
+}
+
+.fwi-header .panel-subtitle {
+  color: var(--text-secondary);
+}
+
+.panel-header-side {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: 10px;
+  flex-shrink: 0;
+}
+
+.panel-header-meta {
+  max-width: 82px;
   overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: rgba(255, 255, 255, 0.86);
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.fwi-header .panel-header-meta {
+  color: var(--text-primary);
 }
 
 .fwi-panel.loading {
@@ -654,10 +843,11 @@ html, body, #root {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 12px 15px;
+  padding: 10px 15px;
   background: var(--bg-tertiary);
   cursor: pointer;
   border-bottom: 1px solid rgba(233, 69, 96, 0.3);
+  user-select: none;
 }
 
 .fwi-header h3 {
@@ -667,6 +857,8 @@ html, body, #root {
   align-items: center;
   gap: 8px;
   flex-wrap: wrap;
+  margin: 0;
+  flex: 1;
 }
 
 .fwi-badge {
@@ -683,11 +875,42 @@ html, body, #root {
   color: var(--text-secondary);
 }
 
+.fwi-empty {
+  padding: 18px 15px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+}
+
+.fwi-empty strong {
+  color: var(--text-primary);
+  font-size: 0.88rem;
+}
+
+.fwi-empty button {
+  align-self: flex-start;
+  padding: 7px 10px;
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--accent);
+  cursor: pointer;
+  font-size: 0.78rem;
+}
+
+.fwi-empty button:hover {
+  background: var(--accent);
+  color: white;
+}
+
 .fwi-content {
   padding: 15px;
   display: flex;
   flex-direction: column;
   gap: 15px;
+  overflow-y: auto;
 }
 
 .fwi-city-label {
@@ -849,25 +1072,11 @@ html, body, #root {
    Info Panel Styles
    ============================================================================= */
 
-.info-panel {
-  background: var(--bg-secondary);
-  display: flex;
-  flex-direction: column;
-  overflow-y: auto;
-  transition: all 0.3s ease;
-  border-bottom: 1px solid rgba(233, 69, 96, 0.2);
-}
-
-.info-panel.collapsed {
-  max-height: 48px;
-  overflow: hidden;
-}
-
 .info-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 15px;
+  padding: 10px 15px;
   background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
   border-bottom: 1px solid rgba(37, 99, 235, 0.3);
   cursor: pointer;
@@ -901,6 +1110,7 @@ html, body, #root {
   gap: 14px;
   flex: 1;
   overflow-y: auto;
+  min-height: 0;
 }
 
 .info-section h4 {
@@ -1061,25 +1271,11 @@ html, body, #root {
    Quemas Agricolas Panel
    ============================================================================= */
 
-.quemas-panel {
-  background: var(--bg-secondary);
-  display: flex;
-  flex-direction: column;
-  overflow-y: auto;
-  transition: all 0.3s ease;
-  border-bottom: 1px solid rgba(233, 69, 96, 0.2);
-}
-
-.quemas-panel.collapsed {
-  max-height: 48px;
-  overflow: hidden;
-}
-
 .quemas-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 15px;
+  padding: 10px 15px;
   background: linear-gradient(135deg, #d97706 0%, #b45309 100%);
   border-bottom: 1px solid rgba(217, 119, 6, 0.3);
   cursor: pointer;
@@ -1195,7 +1391,15 @@ html, body, #root {
     border-left: none;
     border-top: 1px solid rgba(233, 69, 96, 0.3);
     max-height: 50vh;
-    overflow-y: auto;
+    overflow: hidden;
+  }
+
+  .side-panel-overview {
+    padding: 10px 12px;
+  }
+
+  .side-panel-status {
+    margin-top: 8px;
   }
 
   /* Time slider compact */

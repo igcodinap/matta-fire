@@ -72,6 +72,7 @@ function App() {
   const [timeRange, setTimeRange] = useState(() => ({ min: 0, max: Infinity }))
   const [currentHour, setCurrentHour] = useState(() => new Date().getHours())
   const [isMobile, setIsMobile] = useState(() => isMobileDevice())
+  const [activeSidePanel, setActiveSidePanel] = useState(() => (isMobileDevice() ? null : 'risk'))
 
   const wsRef = useRef(null)
   const reconnectTimeoutRef = useRef(null)
@@ -115,6 +116,48 @@ function App() {
 
     return { peakHours, botonRojo, hasHighWind, maxWindSpeed, majorFiresCount }
   }, [fires, currentHour])
+
+  const sidePanelStatus = useMemo(() => {
+    if (riskIndicators.botonRojo) {
+      return {
+        label: 'Boton Rojo',
+        detail: `${riskIndicators.maxWindSpeed.toFixed(0)} km/h de viento`,
+        tone: 'critical'
+      }
+    }
+
+    if (riskIndicators.peakHours) {
+      return {
+        label: 'Horario critico',
+        detail: '13:00-19:00 hrs',
+        tone: 'warning'
+      }
+    }
+
+    if (riskIndicators.hasHighWind) {
+      return {
+        label: 'Viento alto',
+        detail: `${riskIndicators.maxWindSpeed.toFixed(0)} km/h max`,
+        tone: 'warning'
+      }
+    }
+
+    return {
+      label: 'Vigilancia',
+      detail: 'Sin alerta activa',
+      tone: 'stable'
+    }
+  }, [riskIndicators])
+
+  useEffect(() => {
+    if (!isMobile && activeSidePanel === null) {
+      setActiveSidePanel('risk')
+    }
+  }, [isMobile, activeSidePanel])
+
+  const toggleSidePanel = useCallback((panel) => {
+    setActiveSidePanel(prev => (prev === panel ? null : panel))
+  }, [])
 
   // Request notification permission
   useEffect(() => {
@@ -363,10 +406,44 @@ function App() {
           </div>
         </div>
 
-        <div className="side-panels">
-          <InfoPanel />
-          <FWIPanel isMobile={isMobile} />
-          <QuemasPanel />
+        <div className="side-panels" aria-label="Panel lateral de emergencia y riesgo">
+          <div className="side-panel-overview">
+            <div className="side-panel-title-row">
+              <div>
+                <span className="side-panel-kicker">Chile en vivo</span>
+                <h2>Panel de accion</h2>
+              </div>
+              <a className="side-panel-call" href="tel:130" aria-label="Llamar a Bomberos 130">
+                <span>130</span>
+                <small>SOS</small>
+              </a>
+            </div>
+            <div className="side-panel-status">
+              <div className="side-panel-status-row">
+                <span>Condicion</span>
+                <strong className={`side-panel-status-value ${sidePanelStatus.tone}`}>
+                  {sidePanelStatus.label}
+                </strong>
+              </div>
+              <div className="side-panel-status-row">
+                <span>{sidePanelStatus.detail}</span>
+                <strong>{riskIndicators.majorFiresCount} graves</strong>
+              </div>
+            </div>
+          </div>
+          <InfoPanel
+            collapsed={activeSidePanel !== 'info'}
+            onToggle={() => toggleSidePanel('info')}
+          />
+          <FWIPanel
+            isMobile={isMobile}
+            collapsed={activeSidePanel !== 'risk'}
+            onToggle={() => toggleSidePanel('risk')}
+          />
+          <QuemasPanel
+            collapsed={activeSidePanel !== 'burns'}
+            onToggle={() => toggleSidePanel('burns')}
+          />
         </div>
       </div>
 

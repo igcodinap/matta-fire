@@ -1,17 +1,37 @@
 import { useState } from 'react'
 
-function QuemasPanel() {
-  const [collapsed, setCollapsed] = useState(true)
+function QuemasPanel({ collapsed: controlledCollapsed, onToggle }) {
+  const [internalCollapsed, setInternalCollapsed] = useState(true)
+  const collapsed = controlledCollapsed ?? internalCollapsed
+
+  const handleToggle = () => {
+    if (onToggle) {
+      onToggle()
+      return
+    }
+    setInternalCollapsed(prev => !prev)
+  }
 
   return (
     <div className={`quemas-panel ${collapsed ? 'collapsed' : ''}`}>
-      <div className="quemas-header" onClick={() => setCollapsed(!collapsed)}>
+      <button
+        type="button"
+        className="quemas-header panel-header-button"
+        onClick={handleToggle}
+        aria-expanded={!collapsed}
+      >
         <h3>
           <span className="info-icon">🌾</span>
-          <span>Quemas Agricolas</span>
+          <span>
+            <span className="panel-title">Quemas Agricolas</span>
+            <span className="panel-subtitle">Calendario CONAF</span>
+          </span>
         </h3>
-        <span className="info-toggle-icon">{collapsed ? '▶' : '▼'}</span>
-      </div>
+        <span className="panel-header-side">
+          <span className="panel-header-meta">2025-2026</span>
+          <span className="info-toggle-icon">{collapsed ? '▶' : '▼'}</span>
+        </span>
+      </button>
 
       {!collapsed && (
         <div className="info-content">
