@@ -34,6 +34,9 @@ const MapLegend = () => (
   </div>
 )
 
+const getFireCountry = (properties = {}) =>
+  properties.country || (properties.region === 'unknown' ? 'Fuera de Chile' : 'Chile')
+
 // Check if current time is in peak fire hours (Chilean time)
 function isPeakFireHours() {
   const now = new Date()
@@ -102,10 +105,26 @@ function App() {
     let hasHighWind = false
     let maxWindSpeed = 0
     let majorFiresCount = 0
+    let chileFiresCount = 0
+    let argentinaFiresCount = 0
+    let outsideChileFiresCount = 0
 
     if (fires?.features) {
       fires.features.forEach(f => {
         const props = f.properties
+        const country = getFireCountry(props)
+
+        if (country === 'Argentina') {
+          argentinaFiresCount++
+          return
+        }
+
+        if (country !== 'Chile') {
+          outsideChileFiresCount++
+          return
+        }
+
+        chileFiresCount++
         if (props.wind_speed >= 20) hasHighWind = true
         if (props.wind_speed > maxWindSpeed) maxWindSpeed = props.wind_speed
         if (props.severity === 'major' || props.severity === 'significant') majorFiresCount++
@@ -114,7 +133,16 @@ function App() {
 
     const botonRojo = botonRojoWindow && hasHighWind
 
-    return { peakHours, botonRojo, hasHighWind, maxWindSpeed, majorFiresCount }
+    return {
+      peakHours,
+      botonRojo,
+      hasHighWind,
+      maxWindSpeed,
+      majorFiresCount,
+      chileFiresCount,
+      argentinaFiresCount,
+      outsideChileFiresCount
+    }
   }, [fires, currentHour])
 
   const sidePanelStatus = useMemo(() => {
@@ -153,6 +181,11 @@ function App() {
     const count = riskIndicators.majorFiresCount
     return count === 1 ? '1 relevante' : `${count} relevantes`
   }, [riskIndicators.majorFiresCount])
+
+  const hiddenOutsideChileLabel = useMemo(() => {
+    const count = riskIndicators.argentinaFiresCount + riskIndicators.outsideChileFiresCount
+    return count === 1 ? '1 fuera de Chile' : `${count} fuera de Chile`
+  }, [riskIndicators.argentinaFiresCount, riskIndicators.outsideChileFiresCount])
 
   useEffect(() => {
     if (!isMobile && activeSidePanel === null) {
@@ -258,12 +291,13 @@ function App() {
 
   const { min: timeMin, max: timeMax } = timeRange
 
-  // Filter fires by time range only
+  // Filter visible fires to Chile and the selected time range.
   const computedFilteredFires = useMemo(() => {
     if (!fires?.features) return null
 
     const filtered = fires.features.filter(f => {
       const p = f.properties
+      if (getFireCountry(p) !== 'Chile') return false
       if (p.timestamp < timeMin || p.timestamp > timeMax) return false
       return true
     })
@@ -271,7 +305,11 @@ function App() {
     return {
       ...fires,
       features: filtered,
-      metadata: { ...fires.metadata, totalCount: filtered.length }
+      metadata: {
+        ...fires.metadata,
+        total_count: filtered.length,
+        totalCount: filtered.length
+      }
     }
   }, [fires, timeMin, timeMax])
 
@@ -296,12 +334,12 @@ function App() {
     if (loading && !fires) return 'Cargando datos...'
     if (error) return `Error: ${error}`
     if (fires?.features) {
-      const total = fires.features.length
+      const chileCount = riskIndicators.chileFiresCount
       const time = lastUpdated?.toLocaleTimeString('es-CL') || ''
-      return `${total} focos detectados · Actualizado ${time}`
+      return `${chileCount} focos en Chile · Actualizado ${time}`
     }
     return 'Sin datos'
-  }, [loading, fires, error, lastUpdated])
+  }, [loading, fires, error, lastUpdated, riskIndicators])
 
   return (
     <div className={`app-container ${theme}`}>
@@ -434,6 +472,12 @@ function App() {
                 <span>{sidePanelStatus.detail}</span>
                 <strong>{relevantFiresLabel}</strong>
               </div>
+              {riskIndicators.argentinaFiresCount + riskIndicators.outsideChileFiresCount > 0 && (
+                <div className="side-panel-status-row">
+                  <span>Ocultos del mapa</span>
+                  <strong>{hiddenOutsideChileLabel}</strong>
+                </div>
+              )}
             </div>
           </div>
           <InfoPanel

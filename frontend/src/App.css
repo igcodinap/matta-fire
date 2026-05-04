@@ -567,6 +567,14 @@ html, body, #root {
   color: var(--text-secondary);
 }
 
+.fire-outside-country {
+  background: rgba(251, 191, 36, 0.12);
+  border-left: 3px solid #f59e0b;
+  padding: 6px 8px;
+  margin: 6px 0 !important;
+  font-size: 0.78rem;
+}
+
 .fire-wind-info {
   margin-top: 8px;
   padding-top: 8px;

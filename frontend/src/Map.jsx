@@ -188,6 +188,12 @@ const fireIcon = (severity, isNew, cluster) => {
 
 // Reusable popup content — written for civilians
 const FirePopupContent = ({ props, lat, lng }) => {
+  const country = props.country || (props.region === 'unknown' ? 'Fuera de Chile' : 'Chile')
+  const isChile = country === 'Chile'
+  const locationLabel = isChile
+    ? (props.region_name || props.region || 'Chile')
+    : country
+
   return (
     <div className="fire-popup">
       <h3>
@@ -202,7 +208,12 @@ const FirePopupContent = ({ props, lat, lng }) => {
           Activo desde {props.first_seen} ({props.duration})
         </p>
       )}
-      <p><strong>Region:</strong> {props.region_name || props.region || 'Fuera de Chile'}</p>
+      <p><strong>Ubicación:</strong> {locationLabel}</p>
+      {!isChile && (
+        <p className="fire-outside-country">
+          Detección fuera del territorio chileno incluida por el rectángulo satelital.
+        </p>
+      )}
       <p><strong>Detectado:</strong> {formatDetectionTime(props.timestamp)} ({props.daynight === 'D' ? 'de dia' : 'de noche'})</p>
       {props.wind_speed > 0 && (
         <div className="fire-wind-info">

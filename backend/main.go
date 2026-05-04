@@ -383,8 +383,10 @@ func parseRecord(record []string, colIndex map[string]int, sourceName string) (F
 		intensity = "medium"
 	}
 
-	// Determine region
+	// Determine location
 	region := determineRegion(lat, lon)
+	regionName := determineRegionName(region)
+	country := determineCountry(lat, lon, region)
 
 	// Get wind data for this location from the grid
 	windSpeed, windDirection := windGrid.GetWindForLocation(lat, lon)
@@ -399,25 +401,27 @@ func parseRecord(record []string, colIndex map[string]int, sourceName string) (F
 			Coordinates: []float64{lon, lat},
 		},
 		Properties: Properties{
-			Latitude:       lat,
-			Longitude:      lon,
-			Brightness:     getFloat("bright_ti4"),
-			Scan:           getFloat("scan"),
-			Track:          getFloat("track"),
-			AcqDate:        acqDate,
-			AcqTime:        acqTime,
-			Satellite:      sourceName,
-			Instrument:     getString("instrument"),
-			Confidence:     getString("confidence"),
-			Version:        getString("version"),
-			BrightT31:      getFloat("bright_ti5"),
-			FRP:            frp,
-			DayNight:       getString("daynight"),
-			Timestamp:      timestamp,
-			Region:         region,
-			Intensity:      intensity,
-			WindSpeed:      windSpeed,
-			WindDirection:  windDirection,
+			Latitude:      lat,
+			Longitude:     lon,
+			Brightness:    getFloat("bright_ti4"),
+			Scan:          getFloat("scan"),
+			Track:         getFloat("track"),
+			AcqDate:       acqDate,
+			AcqTime:       acqTime,
+			Satellite:     sourceName,
+			Instrument:    getString("instrument"),
+			Confidence:    getString("confidence"),
+			Version:       getString("version"),
+			BrightT31:     getFloat("bright_ti5"),
+			FRP:           frp,
+			DayNight:      getString("daynight"),
+			Timestamp:     timestamp,
+			Region:        region,
+			RegionName:    regionName,
+			Country:       country,
+			Intensity:     intensity,
+			WindSpeed:     windSpeed,
+			WindDirection: windDirection,
 			// Fire history data
 			GridID:         fireRecord.GridID,
 			DetectionCount: fireRecord.DetectionCount,
@@ -454,6 +458,65 @@ func determineRegion(lat, lon float64) string {
 		}
 	}
 	return "unknown"
+}
+
+func determineRegionName(regionCode string) string {
+	if region, ok := ChileanRegions[regionCode]; ok {
+		return region.Name
+	}
+	return ""
+}
+
+func determineCountry(lat, lon float64, regionCode string) string {
+	if regionCode != "unknown" {
+		return "Chile"
+	}
+	if isLikelyArgentina(lat, lon) {
+		return "Argentina"
+	}
+	return "Fuera de Chile"
+}
+
+func isLikelyArgentina(lat, lon float64) bool {
+	borderLon, ok := approximateChileArgentinaBorderLon(lat)
+	if !ok {
+		return false
+	}
+	return lon > borderLon
+}
+
+func approximateChileArgentinaBorderLon(lat float64) (float64, bool) {
+	border := []struct {
+		lat float64
+		lon float64
+	}{
+		{-18.0, -69.0},
+		{-22.0, -67.2},
+		{-26.0, -68.6},
+		{-30.0, -69.8},
+		{-34.0, -70.0},
+		{-38.0, -70.8},
+		{-42.0, -71.5},
+		{-46.0, -71.9},
+		{-50.0, -72.3},
+		{-52.0, -68.6},
+		{-56.0, -68.6},
+	}
+
+	if lat > border[0].lat || lat < border[len(border)-1].lat {
+		return 0, false
+	}
+
+	for i := 0; i < len(border)-1; i++ {
+		north := border[i]
+		south := border[i+1]
+		if lat <= north.lat && lat >= south.lat {
+			ratio := (lat - north.lat) / (south.lat - north.lat)
+			return north.lon + ratio*(south.lon-north.lon), true
+		}
+	}
+
+	return 0, false
 }
 
 // pointInPolygon checks if a point (x, y) is inside a polygon using ray casting algorithm
@@ -674,7 +737,7 @@ func exportHandler(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Disposition", "attachment; filename=fires.csv")
 
 		writer := csv.NewWriter(w)
-		writer.Write([]string{"latitude", "longitude", "brightness", "frp", "confidence", "acq_date", "acq_time", "satellite", "daynight", "region", "intensity"})
+		writer.Write([]string{"latitude", "longitude", "brightness", "frp", "confidence", "acq_date", "acq_time", "satellite", "daynight", "country", "region", "region_name", "intensity"})
 
 		for _, f := range data.Features {
 			p := f.Properties
@@ -688,7 +751,9 @@ func exportHandler(w http.ResponseWriter, r *http.Request) {
 				p.AcqTime,
 				p.Satellite,
 				p.DayNight,
+				p.Country,
 				p.Region,
+				p.RegionName,
 				p.Intensity,
 			})
 		}
