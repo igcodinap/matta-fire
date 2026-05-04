@@ -413,8 +413,8 @@ function App() {
                 <span className="side-panel-kicker">Chile en vivo</span>
                 <h2>Panel de accion</h2>
               </div>
-              <a className="side-panel-call" href="tel:130" aria-label="Llamar a Bomberos 130">
-                <span>130</span>
+              <a className="side-panel-call" href="tel:132" aria-label="Llamar a Bomberos 132">
+                <span>132</span>
                 <small>SOS</small>
               </a>
             </div>

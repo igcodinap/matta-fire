@@ -214,7 +214,7 @@ const FirePopupContent = ({ props, lat, lng }) => {
       )}
       {(props.severity === 'major' || props.severity === 'significant') && (
         <div className="fire-emergency-tip">
-          Si ve humo o fuego, llame al <strong>130</strong> (Bomberos)
+          Si ve humo o fuego, llame al <strong>132</strong> (Bomberos) o al <strong>130</strong> (CONAF)
         </div>
       )}
     </div>
