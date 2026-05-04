@@ -149,6 +149,11 @@ function App() {
     }
   }, [riskIndicators])
 
+  const relevantFiresLabel = useMemo(() => {
+    const count = riskIndicators.majorFiresCount
+    return count === 1 ? '1 relevante' : `${count} relevantes`
+  }, [riskIndicators.majorFiresCount])
+
   useEffect(() => {
     if (!isMobile && activeSidePanel === null) {
       setActiveSidePanel('risk')
@@ -362,7 +367,7 @@ function App() {
             <span>Horario de mayor riesgo (14:00-19:00) con vientos fuertes de {riskIndicators.maxWindSpeed.toFixed(0)} km/h. Extreme precaucion.</span>
           </div>
           {riskIndicators.majorFiresCount > 0 && (
-            <span className="risk-stat">{riskIndicators.majorFiresCount} incendios graves activos</span>
+            <span className="risk-stat">{relevantFiresLabel} activos</span>
           )}
         </div>
       )}
@@ -376,7 +381,7 @@ function App() {
             <span>Entre las 13:00 y 19:00 hrs ocurren la mayoria de los incendios forestales</span>
           </div>
           {riskIndicators.majorFiresCount > 0 && (
-            <span className="risk-stat">{riskIndicators.majorFiresCount} incendios graves activos</span>
+            <span className="risk-stat">{relevantFiresLabel} activos</span>
           )}
         </div>
       )}
@@ -427,7 +432,7 @@ function App() {
               </div>
               <div className="side-panel-status-row">
                 <span>{sidePanelStatus.detail}</span>
-                <strong>{riskIndicators.majorFiresCount} graves</strong>
+                <strong>{relevantFiresLabel}</strong>
               </div>
             </div>
           </div>

@@ -20,9 +20,9 @@ import (
 // FWIData holds the calculated Fire Weather Index components
 type FWIData struct {
 	// Input values
-	Temperature  float64 `json:"temperature"`   // °C
-	Humidity     float64 `json:"humidity"`      // %
-	WindSpeed    float64 `json:"wind_speed"`    // km/h
+	Temperature   float64 `json:"temperature"`   // °C
+	Humidity      float64 `json:"humidity"`      // %
+	WindSpeed     float64 `json:"wind_speed"`    // km/h
 	Precipitation float64 `json:"precipitation"` // mm (24h)
 
 	// Fuel Moisture Codes
@@ -36,33 +36,22 @@ type FWIData struct {
 	FWI float64 `json:"fwi"` // Fire Weather Index
 
 	// Danger rating
-	DangerClass  string `json:"danger_class"`  // Low, Moderate, High, Very High, Extreme
-	DangerColor  string `json:"danger_color"`  // Color code for UI
+	DangerClass     string `json:"danger_class"`     // Low, Moderate, High, Very High, Extreme
+	DangerColor     string `json:"danger_color"`     // Color code for UI
 	SpreadPotential string `json:"spread_potential"` // Description
 
 	// Metadata
-	Location    string    `json:"location"`
-	Latitude    float64   `json:"latitude"`
-	Longitude   float64   `json:"longitude"`
-	UpdatedAt   time.Time `json:"updated_at"`
+	Location  string    `json:"location"`
+	Latitude  float64   `json:"latitude"`
+	Longitude float64   `json:"longitude"`
+	UpdatedAt time.Time `json:"updated_at"`
 }
 
-// FWI Cache
-type FWICache struct {
-	mu   sync.RWMutex
-	data map[string]*FWIData // keyed by "lat,lon"
-	// Previous day values needed for calculations
-	prevFFMC float64
-	prevDMC  float64
-	prevDC   float64
-}
-
-var fwiCache = &FWICache{
-	data:     make(map[string]*FWIData),
-	prevFFMC: 85.0, // Default starting values
-	prevDMC:  6.0,
-	prevDC:   15.0,
-}
+const (
+	defaultFFMC = 85.0
+	defaultDMC  = 6.0
+	defaultDC   = 15.0
+)
 
 // =============================================================================
 // Wind Grid Cache - Wind data for fire locations
@@ -286,7 +275,7 @@ func CalculateDMC(temp, rh, rain, prevDMC float64, month int) float64 {
 
 	// Temperature effect
 	if temp > -1.1 {
-		K := 1.894*(temp+1.1)*(100.0-rh)*Le*0.000001
+		K := 1.894 * (temp + 1.1) * (100.0 - rh) * Le * 0.000001
 		dmc := po + 100.0*K
 		return dmc
 	}
@@ -399,11 +388,12 @@ func GetDangerClass(fwi float64) (string, string, string) {
 
 type OpenMeteoResponse struct {
 	Current struct {
-		Temperature    float64 `json:"temperature_2m"`
-		Humidity       float64 `json:"relative_humidity_2m"`
-		WindSpeed      float64 `json:"wind_speed_10m"`
-		Precipitation  float64 `json:"precipitation"`
-		WindDirection  float64 `json:"wind_direction_10m"`
+		Time          string  `json:"time"`
+		Temperature   float64 `json:"temperature_2m"`
+		Humidity      float64 `json:"relative_humidity_2m"`
+		WindSpeed     float64 `json:"wind_speed_10m"`
+		Precipitation float64 `json:"precipitation"`
+		WindDirection float64 `json:"wind_direction_10m"`
 	} `json:"current"`
 	Daily struct {
 		PrecipitationSum []float64 `json:"precipitation_sum"`
@@ -417,15 +407,24 @@ func FetchWeatherAndCalculateFWI(lat, lon float64) (*FWIData, error) {
 		lat, lon,
 	)
 
-	resp, err := http.Get(url)
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Get(url)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch weather: %w", err)
 	}
 	defer resp.Body.Close()
 
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("weather API returned status %d", resp.StatusCode)
+	}
+
 	var weather OpenMeteoResponse
 	if err := json.NewDecoder(resp.Body).Decode(&weather); err != nil {
 		return nil, fmt.Errorf("failed to decode weather: %w", err)
+	}
+
+	if weather.Current.Time == "" {
+		return nil, fmt.Errorf("weather API response missing current conditions")
 	}
 
 	// Get 24h precipitation (yesterday's total)
@@ -437,29 +436,15 @@ func FetchWeatherAndCalculateFWI(lat, lon float64) (*FWIData, error) {
 	// Get current month for DMC/DC calculations
 	month := time.Now().Month()
 
-	// Get previous values
-	fwiCache.mu.RLock()
-	prevFFMC := fwiCache.prevFFMC
-	prevDMC := fwiCache.prevDMC
-	prevDC := fwiCache.prevDC
-	fwiCache.mu.RUnlock()
-
 	// Calculate FWI components
-	ffmc := CalculateFFMC(weather.Current.Temperature, weather.Current.Humidity, weather.Current.WindSpeed, precip24h, prevFFMC)
-	dmc := CalculateDMC(weather.Current.Temperature, weather.Current.Humidity, precip24h, prevDMC, int(month))
-	dc := CalculateDC(weather.Current.Temperature, precip24h, prevDC, int(month))
+	ffmc := CalculateFFMC(weather.Current.Temperature, weather.Current.Humidity, weather.Current.WindSpeed, precip24h, defaultFFMC)
+	dmc := CalculateDMC(weather.Current.Temperature, weather.Current.Humidity, precip24h, defaultDMC, int(month))
+	dc := CalculateDC(weather.Current.Temperature, precip24h, defaultDC, int(month))
 	isi := CalculateISI(ffmc, weather.Current.WindSpeed)
 	bui := CalculateBUI(dmc, dc)
 	fwi := CalculateFWI(isi, bui)
 
 	dangerClass, dangerColor, spreadPotential := GetDangerClass(fwi)
-
-	// Update cache with new values for next calculation
-	fwiCache.mu.Lock()
-	fwiCache.prevFFMC = ffmc
-	fwiCache.prevDMC = dmc
-	fwiCache.prevDC = dc
-	fwiCache.mu.Unlock()
 
 	return &FWIData{
 		Temperature:     weather.Current.Temperature,
@@ -520,6 +505,7 @@ func FetchAllFWI() (map[string]*FWIData, error) {
 			defer wg.Done()
 			fwi, err := FetchWeatherAndCalculateFWI(lat, lon)
 			if err != nil {
+				log.Printf("FWI fetch error for %s: %v", name, err)
 				return
 			}
 			fwi.Location = name
@@ -530,6 +516,9 @@ func FetchAllFWI() (map[string]*FWIData, error) {
 	}
 
 	wg.Wait()
+	if len(results) == 0 {
+		return nil, fmt.Errorf("no FWI data available")
+	}
 	return results, nil
 }
 
