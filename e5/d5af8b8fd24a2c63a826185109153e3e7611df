@@ -1,0 +1,33 @@
+backend/main_test.go
+  6ef14710566e0c39 1-44
+backend/types.go
+  6ef14710566e0c39 50-56,87-92,117-119,121-136
+frontend/src/App.jsx
+  6ef14710566e0c39 37-39,108-110,115-127,136-145,185-189,294,300,308-312,337,339,342,475-480
+frontend/src/App.css
+  6ef14710566e0c39 570-577
+frontend/src/Map.jsx
+  6ef14710566e0c39 191-196,211-216
+backend/main.go
+  6ef14710566e0c39 386,388-389,404-424,463-521,740,754,756
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.4",
+  "base_commit_sha": "e5d5af8b8fd24a2c63a826185109153e3e7611df",
+  "prompts": {
+    "6ef14710566e0c39": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019df330-3100-71b1-b293-4ff62fb12b53",
+        "model": "gpt-5.5"
+      },
+      "human_author": "igcodinap",
+      "messages": [],
+      "total_additions": 232,
+      "total_deletions": 58,
+      "accepted_lines": 233,
+      "overriden_lines": 0
+    }
+  }
+}
