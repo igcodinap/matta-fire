@@ -1,0 +1,78 @@
+frontend/src/fireUtils.js
+  e0d99e1433cab946 1-88,90-104
+  1bea8f750ac9aa48 89,105
+frontend/src/SavedPlacesPanel.jsx
+  1bea8f750ac9aa48 4,14,26,30,34,38-44,112-113,116,120-123,147-154,156,158,173,183-186,283
+  e0d99e1433cab946 1-3,5-13,15-25,27-29,31-33,35-37,45-111,114-115,117-119,124-146,155,157,159-172,174-182,187-282
+backend/main.go
+  e0d99e1433cab946 244-246,251,380-381,426,462-477,482-494,648-660,805-808,810-829,831-839,847,849,851-858,862-863,875-880,888-891,893-894
+  1bea8f750ac9aa48 252-258,478-481,627-631,667-682,763,809,892
+frontend/src/Map.jsx
+  e0d99e1433cab946 2,235,395-427
+frontend/src/FilterPanel.jsx
+  e0d99e1433cab946 18-19,34-38,50-61,125,127
+  1bea8f750ac9aa48 25
+frontend/src/App.css
+  1bea8f750ac9aa48 1566-1571
+  e0d99e1433cab946 1282-1565,1572-1635
+frontend/src/App.jsx
+  1bea8f750ac9aa48 9,142,144-146,207,337-340,352-365,391,400,462,492
+  e0d99e1433cab946 6-8,75-89,265-278,281,285,296-318,382-390,392-399,401-419,477-491,493-497,515
+frontend/src/TrustNotice.jsx
+  e0d99e1433cab946 1-39
+backend/main_test.go
+  1bea8f750ac9aa48 4-9,57-58,60-61,64-68,71-75,78-80,82-86,91,93,95-106,108-111,129-131,135-136,140-142,145-147,150-152,155-156,160-162,179,182,185,190-191,195-196,200-201,205-211,215-216,220-221,233-370
+  e0d99e1433cab946 3,10-12,54-56,59,62-63,69-70,76-77,81,87-90,92,94,107,112-128,132-134,137-139,143-144,148-149,153-154,157-159,163-178,180-181,183-184,186-189,192-194,197-199,202-204,212-214,217-219,222-230
+README.md
+  e0d99e1433cab946 28,31,115-116
+  1bea8f750ac9aa48 11,168,174-176
+backend/types.go
+  e0d99e1433cab946 14,20-21,54,86-88
+  1bea8f750ac9aa48 15-19,55-61,80
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.4",
+  "base_commit_sha": "f52f0310d722774b0d93e23d1c53b6dedad2c7c8",
+  "prompts": {
+    "1bea8f750ac9aa48": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019dfe00-40af-7b70-92be-c5d4aaf98d02",
+        "model": "gpt-5.5"
+      },
+      "human_author": "igcodinap",
+      "messages": [],
+      "total_additions": 365,
+      "total_deletions": 203,
+      "accepted_lines": 353,
+      "overriden_lines": 0
+    },
+    "6ef14710566e0c39": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019df330-3100-71b1-b293-4ff62fb12b53",
+        "model": "gpt-5.5"
+      },
+      "human_author": "igcodinap",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 1,
+      "overriden_lines": 0
+    },
+    "e0d99e1433cab946": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_201ecba1bffekKzj295lHK7PmK",
+        "model": "opencode/minimax-m2.5-free"
+      },
+      "human_author": "igcodinap",
+      "messages": [],
+      "total_additions": 1270,
+      "total_deletions": 58,
+      "accepted_lines": 1132,
+      "overriden_lines": 0
+    }
+  }
+}
