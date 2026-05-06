@@ -11,10 +11,14 @@ type FeatureCollection struct {
 
 // Metadata for the collection
 type Metadata struct {
-	TotalCount  int       `json:"total_count"`
-	Sources     []string  `json:"sources"`
-	LastUpdated time.Time `json:"last_updated"`
-	BoundingBox []float64 `json:"bounding_box"` // [west, south, east, north]
+	TotalCount             int       `json:"total_count"`
+	Sources                []string  `json:"sources"`
+	LastUpdated            time.Time `json:"last_updated"`
+	BoundingBox            []float64 `json:"bounding_box"` // [west, south, east, north]
+	FetchedAt              time.Time `json:"fetched_at"`
+	RefreshIntervalSeconds int       `json:"refresh_interval_seconds"`
+	SourceNotice           string    `json:"source_notice"`
+	OfficialNotice         string    `json:"official_notice"`
 }
 
 // GeoJSON Feature
@@ -47,13 +51,14 @@ type Properties struct {
 	FRP        float64 `json:"frp"` // Fire Radiative Power
 	DayNight   string  `json:"daynight"`
 	// Computed fields
-	Timestamp     int64   `json:"timestamp"`      // Unix timestamp for time slider
-	Region        string  `json:"region"`         // Chilean region name
-	RegionName    string  `json:"region_name"`    // Human-readable region or area name
-	Country       string  `json:"country"`        // Chile, Argentina, or Fuera de Chile
-	Intensity     string  `json:"intensity"`      // low, medium, high, extreme
-	WindSpeed     float64 `json:"wind_speed"`     // km/h at fire location
-	WindDirection float64 `json:"wind_direction"` // degrees (0=N, 90=E, 180=S, 270=W)
+	Timestamp     int64     `json:"timestamp"`      // Unix timestamp for time slider
+	ObservedAt    time.Time `json:"observed_at"`    // When fire was observed (UTC)
+	Region        string    `json:"region"`         // Chilean region name
+	RegionName    string    `json:"region_name"`    // Human-readable region or area name
+	Country       string    `json:"country"`        // Chile, Argentina, or Fuera de Chile
+	Intensity     string    `json:"intensity"`      // low, medium, high, extreme
+	WindSpeed     float64   `json:"wind_speed"`     // km/h at fire location
+	WindDirection float64   `json:"wind_direction"` // degrees (0=N, 90=E, 180=S, 270=W)
 	// Fire history fields (from deduplication)
 	GridID         string  `json:"grid_id"`         // 1km grid cell ID
 	DetectionCount int     `json:"detection_count"` // Times detected (confidence)
@@ -72,11 +77,15 @@ type FiresInput struct {
 	// Filter parameters
 	Source     string  `query:"source" doc:"Satellite source: all, VIIRS_NOAA20, VIIRS_SNPP, MODIS" default:"all"`
 	Confidence string  `query:"confidence" doc:"Confidence level: all, low, nominal, high" default:"all"`
+	Intensity  string  `query:"intensity" doc:"Intensity level: all, low, medium, high, extreme" default:"all"`
 	MinFRP     float64 `query:"min_frp" doc:"Minimum Fire Radiative Power" default:"0"`
 	MaxFRP     float64 `query:"max_frp" doc:"Maximum Fire Radiative Power" default:"0"`
 	DayNight   string  `query:"daynight" doc:"Day or night: all, D, N" default:"all"`
 	Region     string  `query:"region" doc:"Chilean region code" default:"all"`
 	Days       int     `query:"days" doc:"Number of days of data (1-10)" default:"1" minimum:"1" maximum:"10"`
+	FromTS     int64   `query:"from_ts" doc:"Minimum timestamp (Unix seconds)" default:"0"`
+	ToTS       int64   `query:"to_ts" doc:"Maximum timestamp (Unix seconds)" default:"0"`
+	ChileOnly  bool    `query:"chile_only" doc:"Filter to Chile only" default:"false"`
 }
 
 type HealthOutput struct {

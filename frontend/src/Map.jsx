@@ -1,5 +1,5 @@
 import React, { useMemo, useEffect } from 'react'
-import { MapContainer, TileLayer, CircleMarker, Marker, Popup, useMap, GeoJSON, WMSTileLayer } from 'react-leaflet'
+import { MapContainer, TileLayer, CircleMarker, Marker, Popup, useMap, GeoJSON, WMSTileLayer, Circle } from 'react-leaflet'
 import MarkerClusterGroup from 'react-leaflet-cluster'
 import L from 'leaflet'
 import 'leaflet.heat'
@@ -232,7 +232,7 @@ const FirePopupContent = ({ props, lat, lng }) => {
   )
 }
 
-function Map({ fires, theme, showHeatmap, showClusters, showVegetation }) {
+function Map({ fires, theme, showHeatmap, showClusters, showVegetation, savedPlaces }) {
   const tileLayer = TILE_LAYERS[theme] || TILE_LAYERS.dark
 
   // Group fires by grid_id — one marker per unique fire
@@ -392,6 +392,39 @@ function Map({ fires, theme, showHeatmap, showClusters, showVegetation }) {
         </MarkerClusterGroup>
       )}
       {!showHeatmap && !showClusters && markers}
+
+      {/* Saved places markers and circles */}
+      {savedPlaces?.map(place => (
+        <React.Fragment key={place.id}>
+          <Marker
+            position={[place.lat, place.lng]}
+            icon={L.divIcon({
+              html: `<div style="width:12px;height:12px;background:#3b82f6;border-radius:50%;border:2px solid white;"></div>`,
+              iconSize: [12, 12],
+              iconAnchor: [6, 6]
+            })}
+          >
+            <Popup>
+              <div>
+                <strong>{place.name}</strong>
+                <p>Radio: {place.radiusKm} km</p>
+                <p>Notificaciones: {place.notify ? 'Activadas' : 'Desactivadas'}</p>
+              </div>
+            </Popup>
+          </Marker>
+          <Circle
+            center={[place.lat, place.lng]}
+            radius={place.radiusKm * 1000}
+            pathOptions={{
+              color: '#3b82f6',
+              fillColor: '#3b82f6',
+              fillOpacity: 0.05,
+              weight: 2,
+              dashArray: '5, 5'
+            }}
+          />
+        </React.Fragment>
+      ))}
     </MapContainer>
   )
 }

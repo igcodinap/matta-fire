@@ -8,10 +8,9 @@ Sistema de monitoreo de incendios forestales en tiempo real para Chile, con dato
 
 ## Caracteristicas
 
-- **Deteccion en tiempo real** - Datos satelitales actualizados cada minuto
+- **Actualizacion cada minuto** - El monitor refresca datos satelitales cada minuto (FIRMS puede tener retraso)
 - **Historial de 24 horas** - Seguimiento de focos con deduplicacion inteligente
 - **Clasificacion de severidad** - Incendios categorizados como menor, moderado, significativo o mayor
-- **Alerta Boton Rojo** - Sistema de alerta basado en criterios CONAF (horario + viento)
 - **Indice de Clima de Fuego (FWI)** - Calculo del riesgo de propagacion
 - **Capa de vegetacion** - Visualizacion de cobertura vegetal (ESA WorldCover)
 - **Viento por ubicacion** - Datos de viento para cada foco de incendio
@@ -26,10 +25,10 @@ Sistema de monitoreo de incendios forestales en tiempo real para Chile, con dato
 
 | Fuente | Datos | Actualizacion |
 |--------|-------|---------------|
-| [NASA FIRMS](https://firms.modaps.eosdis.nasa.gov/) | Detecciones de incendios (VIIRS/MODIS) | Cada 1 minuto |
+| [NASA FIRMS](https://firms.modaps.eosdis.nasa.gov/) | Detecciones de incendios (VIIRS/MODIS) | Cada 1 minuto (puede tener retraso satelital) |
 | [Open-Meteo](https://open-meteo.com/) | Clima y viento | Cada hora |
 | [ESA WorldCover](https://esa-worldcover.org/) | Cobertura vegetal (10m resolucion) | Anual |
-| [CONAF](https://www.conaf.cl/) | Estadisticas historicas y criterios de riesgo | Referencia |
+| [CONAF](https://www.conaf.cl/) | Criterios de riesgo | Referencia solo (no hay feed en vivo) |
 
 ### Atribuciones
 
@@ -113,8 +112,8 @@ Obtener API key de NASA FIRMS en: https://firms.modaps.eosdis.nasa.gov/api/area/
 ### Filtros Disponibles
 
 - **Satelite** - VIIRS NOAA-20, VIIRS SNPP, MODIS
-- **Confianza** - Alta, Nominal, Baja
-- **Intensidad** - Alta, Media, Baja
+- **Confianza** - Alta, Nominal (detecciones de baja confianza se filtran automaticamente)
+- **Intensidad** - Extrema, Alta, Media, Baja (basada en FRP)
 - **Momento** - Dia, Noche
 - **Region** - Todas las regiones de Chile
 - **FRP** - Rango de potencia radiativa
@@ -166,16 +165,15 @@ Obtener API key de NASA FIRMS en: https://firms.modaps.eosdis.nasa.gov/api/area/
 
 ---
 
-## Criterios de Alerta
-
-### Alerta Boton Rojo
-Basada en los criterios operacionales de CONAF:
-- **Horario**: 14:00 - 19:00 (hora de Chile)
-- **Viento**: ≥20 km/h en cualquier foco activo
+## Indicadores de Vigilancia
 
 ### Horario de Riesgo Elevado
 - **Horario**: 13:00 - 19:00
 - Periodo historico con mayor ocurrencia de incendios segun estadisticas CONAF
+
+### Viento Alto
+- **Umbral informativo**: >=20 km/h en focos activos en Chile
+- Este indicador es informativo y no equivale a una alerta oficial CONAF
 
 ---
 

@@ -241,14 +241,21 @@ func fetchFIRMSData() error {
 		sources = append(sources, s)
 	}
 
+	sourceNotice := "NASA FIRMS active fire detections are satellite observations and may be delayed or include false positives."
+	officialNotice := "Matta Fire is informational and does not replace CONAF, SENAPRED, Bomberos, or local authority instructions."
+
 	collection := FeatureCollection{
 		Type:     "FeatureCollection",
 		Features: allFeatures,
 		Metadata: &Metadata{
-			TotalCount:  len(allFeatures),
-			Sources:     sources,
-			LastUpdated: time.Now(),
-			BoundingBox: []float64{ChileWest, ChileSouth, ChileEast, ChileNorth},
+			TotalCount:             len(allFeatures),
+			Sources:                sources,
+			LastUpdated:            time.Now(),
+			BoundingBox:            []float64{ChileWest, ChileSouth, ChileEast, ChileNorth},
+			FetchedAt:              time.Now().UTC(),
+			RefreshIntervalSeconds: 60,
+			SourceNotice:           sourceNotice,
+			OfficialNotice:         officialNotice,
 		},
 	}
 
@@ -370,8 +377,8 @@ func parseRecord(record []string, colIndex map[string]int, sourceName string) (F
 	acqDate := getString("acq_date")
 	acqTime := getString("acq_time")
 
-	// Calculate timestamp for time slider
-	timestamp := parseTimestamp(acqDate, acqTime)
+	// Calculate timestamp and observed time for time slider (UTC)
+	timestamp, observedAt := parseFIRMSTime(acqDate, acqTime)
 
 	// Determine intensity level
 	intensity := "low"
@@ -416,6 +423,7 @@ func parseRecord(record []string, colIndex map[string]int, sourceName string) (F
 			FRP:           frp,
 			DayNight:      getString("daynight"),
 			Timestamp:     timestamp,
+			ObservedAt:    observedAt,
 			Region:        region,
 			RegionName:    regionName,
 			Country:       country,
@@ -449,6 +457,39 @@ func parseTimestamp(date, timeStr string) int64 {
 
 	t = t.Add(time.Duration(hour)*time.Hour + time.Duration(minute)*time.Minute)
 	return t.Unix()
+}
+
+// parseFIRMSTime interprets FIRMS acq_date and acq_time as UTC and returns Unix timestamp and ObservedAt time.
+func parseFIRMSTime(acqDate, acqTime string) (unix int64, observedAt time.Time) {
+	// Normalize acqTime to 4 digits (pad with leading zeros if needed)
+	// FIRMS can return "432" instead of "0432"
+	timeStr := acqTime
+	for len(timeStr) < 4 {
+		timeStr = "0" + timeStr
+	}
+
+	if len(acqDate) < 10 || len(timeStr) < 4 {
+		now := time.Now().UTC()
+		return now.Unix(), now
+	}
+
+	hour, hourErr := strconv.Atoi(timeStr[:2])
+	minute, minuteErr := strconv.Atoi(timeStr[2:4])
+	if hourErr != nil || minuteErr != nil || hour < 0 || hour > 23 || minute < 0 || minute > 59 {
+		now := time.Now().UTC()
+		return now.Unix(), now
+	}
+
+	// Parse date in UTC explicitly
+	t, err := time.Parse("2006-01-02", acqDate)
+	if err != nil {
+		now := time.Now().UTC()
+		return now.Unix(), now
+	}
+
+	t = t.Add(time.Duration(hour)*time.Hour + time.Duration(minute)*time.Minute)
+	observedAt = t.UTC()
+	return observedAt.Unix(), observedAt
 }
 
 func determineRegion(lat, lon float64) string {
@@ -583,6 +624,13 @@ func filterFeatures(features []Feature, input *FiresInput) []Feature {
 			continue
 		}
 
+		// Intensity filter
+		if input.Intensity != "all" && input.Intensity != "" {
+			if !strings.EqualFold(f.Properties.Intensity, input.Intensity) {
+				continue
+			}
+		}
+
 		// Day/Night filter
 		if input.DayNight != "all" && input.DayNight != "" {
 			if strings.ToUpper(f.Properties.DayNight) != strings.ToUpper(input.DayNight) {
@@ -597,10 +645,39 @@ func filterFeatures(features []Feature, input *FiresInput) []Feature {
 			}
 		}
 
+		// Time range filter (from_ts and to_ts)
+		if input.FromTS > 0 && f.Properties.Timestamp < input.FromTS {
+			continue
+		}
+		if input.ToTS > 0 && f.Properties.Timestamp > input.ToTS {
+			continue
+		}
+
+		// Chile-only filter
+		if input.ChileOnly && f.Properties.Country != "Chile" {
+			continue
+		}
+
 		result = append(result, f)
 	}
 
 	return result
+}
+
+func metadataWithTotalCount(metadata *Metadata, total int) *Metadata {
+	if metadata == nil {
+		return nil
+	}
+
+	copy := *metadata
+	if metadata.BoundingBox != nil {
+		copy.BoundingBox = append([]float64(nil), metadata.BoundingBox...)
+	}
+	if metadata.Sources != nil {
+		copy.Sources = append([]string(nil), metadata.Sources...)
+	}
+	copy.TotalCount = total
+	return &copy
 }
 
 // =============================================================================
@@ -683,11 +760,7 @@ func getFiresHandler(ctx context.Context, input *FiresInput) (*FiresOutput, erro
 	result := FeatureCollection{
 		Type:     "FeatureCollection",
 		Features: filtered,
-		Metadata: data.Metadata,
-	}
-
-	if result.Metadata != nil {
-		result.Metadata.TotalCount = len(filtered)
+		Metadata: metadataWithTotalCount(data.Metadata, len(filtered)),
 	}
 
 	return &FiresOutput{Body: result}, nil
@@ -729,7 +802,41 @@ func exportHandler(w http.ResponseWriter, r *http.Request) {
 		format = "geojson"
 	}
 
+	// Parse filters from query params
+	input := &FiresInput{
+		Source:     r.URL.Query().Get("source"),
+		Confidence: r.URL.Query().Get("confidence"),
+		Intensity:  r.URL.Query().Get("intensity"),
+		DayNight:   r.URL.Query().Get("daynight"),
+		Region:     r.URL.Query().Get("region"),
+	}
+
+	if minFrp := r.URL.Query().Get("min_frp"); minFrp != "" {
+		input.MinFRP, _ = strconv.ParseFloat(minFrp, 64)
+	}
+	if maxFrp := r.URL.Query().Get("max_frp"); maxFrp != "" {
+		input.MaxFRP, _ = strconv.ParseFloat(maxFrp, 64)
+	}
+	if fromTs := r.URL.Query().Get("from_ts"); fromTs != "" {
+		input.FromTS, _ = strconv.ParseInt(fromTs, 10, 64)
+	}
+	if toTs := r.URL.Query().Get("to_ts"); toTs != "" {
+		input.ToTS, _ = strconv.ParseInt(toTs, 10, 64)
+	}
+	if chileOnly := r.URL.Query().Get("chile_only"); chileOnly == "true" {
+		input.ChileOnly = true
+	}
+
 	data, _ := cache.Get()
+	filtered := filterFeatures(data.Features, input)
+
+	// Get metadata for notices
+	var fetchedAt time.Time
+	var sourceNotice string
+	if data.Metadata != nil {
+		fetchedAt = data.Metadata.FetchedAt
+		sourceNotice = data.Metadata.SourceNotice
+	}
 
 	switch format {
 	case "csv":
@@ -737,13 +844,23 @@ func exportHandler(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Disposition", "attachment; filename=fires.csv")
 
 		writer := csv.NewWriter(w)
-		writer.Write([]string{"latitude", "longitude", "brightness", "frp", "confidence", "acq_date", "acq_time", "satellite", "daynight", "country", "region", "region_name", "intensity"})
+		writer.Write([]string{"latitude", "longitude", "observed_at", "fetched_at", "brightness", "frp", "confidence", "acq_date", "acq_time", "satellite", "daynight", "country", "region", "region_name", "intensity", "severity", "detection_count", "max_frp", "wind_speed", "wind_direction", "source_notice"})
 
-		for _, f := range data.Features {
+		for _, f := range filtered {
 			p := f.Properties
+			observedAtStr := ""
+			if !p.ObservedAt.IsZero() {
+				observedAtStr = p.ObservedAt.Format(time.RFC3339)
+			}
+			fetchedAtStr := ""
+			if !fetchedAt.IsZero() {
+				fetchedAtStr = fetchedAt.Format(time.RFC3339)
+			}
 			writer.Write([]string{
 				fmt.Sprintf("%.5f", p.Latitude),
 				fmt.Sprintf("%.5f", p.Longitude),
+				observedAtStr,
+				fetchedAtStr,
 				fmt.Sprintf("%.2f", p.Brightness),
 				fmt.Sprintf("%.2f", p.FRP),
 				p.Confidence,
@@ -755,6 +872,12 @@ func exportHandler(w http.ResponseWriter, r *http.Request) {
 				p.Region,
 				p.RegionName,
 				p.Intensity,
+				p.Severity,
+				fmt.Sprintf("%d", p.DetectionCount),
+				fmt.Sprintf("%.2f", p.MaxFRP),
+				fmt.Sprintf("%.2f", p.WindSpeed),
+				fmt.Sprintf("%.0f", p.WindDirection),
+				sourceNotice,
 			})
 		}
 		writer.Flush()
@@ -762,7 +885,13 @@ func exportHandler(w http.ResponseWriter, r *http.Request) {
 	default: // geojson
 		w.Header().Set("Content-Type", "application/geo+json")
 		w.Header().Set("Content-Disposition", "attachment; filename=fires.geojson")
-		json.NewEncoder(w).Encode(data)
+
+		result := FeatureCollection{
+			Type:     "FeatureCollection",
+			Features: filtered,
+			Metadata: metadataWithTotalCount(data.Metadata, len(filtered)),
+		}
+		json.NewEncoder(w).Encode(result)
 	}
 }
 

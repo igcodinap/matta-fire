@@ -15,12 +15,14 @@ function FilterPanel({ filters, setFilters, regions, sources, isMobile, isOpen, 
       daynight: 'all',
       region: 'all',
       minFrp: 0,
-      maxFrp: 0
+      maxFrp: 0,
+      chileOnly: true
     })
   }
 
   const hasActiveFilters = Object.entries(filters).some(([key, value]) => {
     if (key === 'minFrp' || key === 'maxFrp') return value > 0
+    if (key === 'chileOnly') return value !== true
     return value !== 'all'
   })
 
@@ -28,6 +30,11 @@ function FilterPanel({ filters, setFilters, regions, sources, isMobile, isOpen, 
   const panelClass = isMobile
     ? `filter-panel mobile ${isOpen ? 'open' : ''}`
     : `filter-panel ${collapsed ? 'collapsed' : ''}`
+
+  // Handle empty regions gracefully
+  const regionEntries = regions && typeof regions === 'object'
+    ? Object.entries(regions).sort((a, b) => a[1].localeCompare(b[1]))
+    : []
 
   return (
     <div className={panelClass}>
@@ -40,6 +47,18 @@ function FilterPanel({ filters, setFilters, regions, sources, isMobile, isOpen, 
 
       {!collapsed && (
         <div className="filter-content">
+          {/* Chile Only */}
+          <div className="filter-group checkbox">
+            <label>
+              <input
+                type="checkbox"
+                checked={filters.chileOnly}
+                onChange={(e) => handleChange('chileOnly', e.target.checked)}
+              />
+              Solo Chile
+            </label>
+          </div>
+
           {/* Source */}
           <div className="filter-group">
             <label>Satelite</label>
@@ -103,9 +122,9 @@ function FilterPanel({ filters, setFilters, regions, sources, isMobile, isOpen, 
               onChange={(e) => handleChange('region', e.target.value)}
             >
               <option value="all">Todas</option>
-              {Object.entries(regions).sort((a, b) => a[1].localeCompare(b[1])).map(([code, name]) => (
+              {regionEntries.length > 0 ? regionEntries.map(([code, name]) => (
                 <option key={code} value={code}>{name}</option>
-              ))}
+              )) : null}
             </select>
           </div>
 

@@ -3,6 +3,10 @@ import TimeSlider from './TimeSlider'
 import FWIPanel from './FWIPanel'
 import InfoPanel from './InfoPanel'
 import QuemasPanel from './QuemasPanel'
+import FilterPanel from './FilterPanel'
+import TrustNotice from './TrustNotice'
+import SavedPlacesPanel from './SavedPlacesPanel'
+import { filterFires } from './fireUtils'
 import './App.css'
 
 // Check if mobile on initial render
@@ -46,14 +50,6 @@ function isPeakFireHours() {
   return hour >= 13 && hour < 19 // 13:00 - 18:59
 }
 
-// Check if in Botón Rojo window (14:00 - 18:59)
-function isBotonRojoWindow() {
-  const now = new Date()
-  const chileanTime = new Date(now.toLocaleString('en-US', { timeZone: 'America/Santiago' }))
-  const hour = chileanTime.getHours()
-  return hour >= 14 && hour < 19 // 14:00 - 18:59
-}
-
 function App() {
   // Use function form for state initialization
   const [fires, setFires] = useState(() => null)
@@ -76,6 +72,21 @@ function App() {
   const [currentHour, setCurrentHour] = useState(() => new Date().getHours())
   const [isMobile, setIsMobile] = useState(() => isMobileDevice())
   const [activeSidePanel, setActiveSidePanel] = useState(() => (isMobileDevice() ? null : 'risk'))
+  const [regions, setRegions] = useState(() => ({}))
+  const [filters, setFilters] = useState(() => ({
+    source: 'all',
+    confidence: 'all',
+    intensity: 'all',
+    daynight: 'all',
+    region: 'all',
+    minFrp: 0,
+    maxFrp: 0,
+    chileOnly: true
+  }))
+  const [savedPlaces, setSavedPlaces] = useState(() => [])
+  const [showFilters, setShowFilters] = useState(() => false)
+  const [showTrustNotice, setShowTrustNotice] = useState(() => false)
+  const [showSavedPlaces, setShowSavedPlaces] = useState(() => false)
 
   const wsRef = useRef(null)
   const reconnectTimeoutRef = useRef(null)
@@ -100,29 +111,16 @@ function App() {
   // Calculate risk indicators
   const riskIndicators = useMemo(() => {
     const peakHours = isPeakFireHours()
-    const botonRojoWindow = isBotonRojoWindow()
 
     let hasHighWind = false
     let maxWindSpeed = 0
     let majorFiresCount = 0
     let chileFiresCount = 0
-    let argentinaFiresCount = 0
-    let outsideChileFiresCount = 0
 
     if (fires?.features) {
       fires.features.forEach(f => {
         const props = f.properties
-        const country = getFireCountry(props)
-
-        if (country === 'Argentina') {
-          argentinaFiresCount++
-          return
-        }
-
-        if (country !== 'Chile') {
-          outsideChileFiresCount++
-          return
-        }
+        if (getFireCountry(props) !== 'Chile') return
 
         chileFiresCount++
         if (props.wind_speed >= 20) hasHighWind = true
@@ -131,26 +129,21 @@ function App() {
       })
     }
 
-    const botonRojo = botonRojoWindow && hasHighWind
-
     return {
       peakHours,
-      botonRojo,
       hasHighWind,
       maxWindSpeed,
       majorFiresCount,
-      chileFiresCount,
-      argentinaFiresCount,
-      outsideChileFiresCount
+      chileFiresCount
     }
   }, [fires, currentHour])
 
   const sidePanelStatus = useMemo(() => {
-    if (riskIndicators.botonRojo) {
+    if (riskIndicators.hasHighWind) {
       return {
-        label: 'Boton Rojo',
-        detail: `${riskIndicators.maxWindSpeed.toFixed(0)} km/h de viento`,
-        tone: 'critical'
+        label: 'Viento alto',
+        detail: `${riskIndicators.maxWindSpeed.toFixed(0)} km/h max`,
+        tone: 'warning'
       }
     }
 
@@ -158,14 +151,6 @@ function App() {
       return {
         label: 'Horario critico',
         detail: '13:00-19:00 hrs',
-        tone: 'warning'
-      }
-    }
-
-    if (riskIndicators.hasHighWind) {
-      return {
-        label: 'Viento alto',
-        detail: `${riskIndicators.maxWindSpeed.toFixed(0)} km/h max`,
         tone: 'warning'
       }
     }
@@ -182,11 +167,6 @@ function App() {
     return count === 1 ? '1 relevante' : `${count} relevantes`
   }, [riskIndicators.majorFiresCount])
 
-  const hiddenOutsideChileLabel = useMemo(() => {
-    const count = riskIndicators.argentinaFiresCount + riskIndicators.outsideChileFiresCount
-    return count === 1 ? '1 fuera de Chile' : `${count} fuera de Chile`
-  }, [riskIndicators.argentinaFiresCount, riskIndicators.outsideChileFiresCount])
-
   useEffect(() => {
     if (!isMobile && activeSidePanel === null) {
       setActiveSidePanel('risk')
@@ -195,13 +175,6 @@ function App() {
 
   const toggleSidePanel = useCallback((panel) => {
     setActiveSidePanel(prev => (prev === panel ? null : panel))
-  }, [])
-
-  // Request notification permission
-  useEffect(() => {
-    if ('Notification' in window && Notification.permission === 'default') {
-      Notification.requestPermission()
-    }
   }, [])
 
   // WebSocket connection
@@ -231,7 +204,7 @@ function App() {
         setAlerts(prev => [alert, ...prev.slice(0, 9)])
 
         // Browser notification
-        if (Notification.permission === 'granted') {
+        if ('Notification' in window && Notification.permission === 'granted') {
           new Notification('Alerta de Incendio', {
             body: alert.message,
             icon: '/fire-icon.png',
@@ -289,18 +262,27 @@ function App() {
     return () => clearTimeout(timeout)
   }, [fires])
 
+  // Fetch regions once
+  useEffect(() => {
+    fetch('/api/regions')
+      .then(r => r.json())
+      .then(data => {
+        if (data?.body) {
+          setRegions(data.body)
+        } else if (data) {
+          setRegions(data)
+        }
+      })
+      .catch(console.error)
+  }, [])
+
   const { min: timeMin, max: timeMax } = timeRange
 
-  // Filter visible fires to Chile and the selected time range.
+  // Client-side filtering combining all filters
   const computedFilteredFires = useMemo(() => {
     if (!fires?.features) return null
 
-    const filtered = fires.features.filter(f => {
-      const p = f.properties
-      if (getFireCountry(p) !== 'Chile') return false
-      if (p.timestamp < timeMin || p.timestamp > timeMax) return false
-      return true
-    })
+    const filtered = filterFires(fires.features, filters, timeRange, fires.metadata)
 
     return {
       ...fires,
@@ -311,7 +293,29 @@ function App() {
         totalCount: filtered.length
       }
     }
-  }, [fires, timeMin, timeMax])
+  }, [fires, filters, timeRange])
+
+  // Save filters to localStorage
+  useEffect(() => {
+    localStorage.setItem('matta.filters.v1', JSON.stringify(filters))
+  }, [filters])
+
+  // Load saved places from localStorage
+  useEffect(() => {
+    const saved = localStorage.getItem('matta.savedPlaces.v1')
+    if (saved) {
+      try {
+        setSavedPlaces(JSON.parse(saved))
+      } catch (e) {
+        console.error('Failed to parse saved places:', e)
+      }
+    }
+  }, [])
+
+  // Save places to localStorage when changed
+  useEffect(() => {
+    localStorage.setItem('matta.savedPlaces.v1', JSON.stringify(savedPlaces))
+  }, [savedPlaces])
 
   // Sync filtered fires state with computed value
   useEffect(() => {
@@ -330,6 +334,10 @@ function App() {
     setAlerts(prev => prev.filter((_, i) => i !== index))
   }, [])
 
+  const handlePlaceAlert = useCallback((alert) => {
+    setAlerts(prev => [alert, ...prev.slice(0, 9)])
+  }, [])
+
   const getStatusText = useCallback(() => {
     if (loading && !fires) return 'Cargando datos...'
     if (error) return `Error: ${error}`
@@ -340,6 +348,21 @@ function App() {
     }
     return 'Sin datos'
   }, [loading, fires, error, lastUpdated, riskIndicators])
+
+  const buildExportParams = useCallback((format) => {
+    const params = new URLSearchParams({ format })
+    if (filters.chileOnly) params.set('chile_only', 'true')
+    if (filters.source !== 'all') params.set('source', filters.source)
+    if (filters.confidence !== 'all') params.set('confidence', filters.confidence)
+    if (filters.intensity !== 'all') params.set('intensity', filters.intensity)
+    if (filters.daynight !== 'all') params.set('daynight', filters.daynight)
+    if (filters.region !== 'all') params.set('region', filters.region)
+    if (filters.minFrp > 0) params.set('min_frp', filters.minFrp.toString())
+    if (filters.maxFrp > 0) params.set('max_frp', filters.maxFrp.toString())
+    if (timeMin > 0) params.set('from_ts', timeMin.toString())
+    if (timeMax < Infinity) params.set('to_ts', timeMax.toString())
+    return params
+  }, [filters, timeMin, timeMax])
 
   return (
     <div className={`app-container ${theme}`}>
@@ -355,6 +378,45 @@ function App() {
         <div className="header-right">
           {!isMobile && <span className="status-text">{getStatusText()}</span>}
           <div className="header-controls">
+            <button
+              className={`toggle-btn ${showFilters ? 'active' : ''}`}
+              onClick={() => setShowFilters(!showFilters)}
+              title="Filtrar incendios"
+            >
+              {isMobile ? 'F' : 'Filtros'}
+            </button>
+            <button
+              className="toggle-btn export-btn"
+              onClick={() => {
+                window.open(`/api/export?${buildExportParams('csv').toString()}`, '_blank')
+              }}
+              title="Exportar CSV"
+            >
+              {isMobile ? 'CSV' : 'CSV'}
+            </button>
+            <button
+              className="toggle-btn export-btn"
+              onClick={() => {
+                window.open(`/api/export?${buildExportParams('geojson').toString()}`, '_blank')
+              }}
+              title="Exportar GeoJSON"
+            >
+              {isMobile ? 'GJ' : 'GeoJSON'}
+            </button>
+            <button
+              className={`toggle-btn ${showTrustNotice ? 'active' : ''}`}
+              onClick={() => setShowTrustNotice(!showTrustNotice)}
+              title="Informacion de fuentes"
+            >
+              {isMobile ? 'i' : 'Info'}
+            </button>
+            <button
+              className={`toggle-btn ${showSavedPlaces ? 'active' : ''}`}
+              onClick={() => setShowSavedPlaces(!showSavedPlaces)}
+              title="Lugares guardados"
+            >
+              {isMobile ? '📍' : 'Lugares'}
+            </button>
             <button
               className={`toggle-btn ${showHeatmap ? 'active' : ''}`}
               onClick={() => setShowHeatmap(!showHeatmap)}
@@ -396,22 +458,8 @@ function App() {
         </div>
       )}
 
-      {/* Risk Banner - Botón Rojo */}
-      {riskIndicators.botonRojo && (
-        <div className="risk-banner boton-rojo">
-          <span className="risk-icon">🚨</span>
-          <div className="risk-content">
-            <strong>ALERTA: CONDICIONES EXTREMAS DE INCENDIO</strong>
-            <span>Horario de mayor riesgo (14:00-19:00) con vientos fuertes de {riskIndicators.maxWindSpeed.toFixed(0)} km/h. Extreme precaucion.</span>
-          </div>
-          {riskIndicators.majorFiresCount > 0 && (
-            <span className="risk-stat">{relevantFiresLabel} activos</span>
-          )}
-        </div>
-      )}
-
       {/* Peak Hours Warning */}
-      {!riskIndicators.botonRojo && riskIndicators.peakHours && (
+      {riskIndicators.peakHours && (
         <div className="risk-banner peak-hours">
           <span className="risk-icon">⚠️</span>
           <div className="risk-content">
@@ -426,6 +474,27 @@ function App() {
 
       <div className="main-content">
         <div className="map-wrapper">
+          {showFilters && (
+            <FilterPanel
+              filters={filters}
+              setFilters={setFilters}
+              regions={regions}
+              isMobile={isMobile}
+              isOpen={showFilters}
+              onClose={() => setShowFilters(false)}
+            />
+          )}
+          {showSavedPlaces && (
+            <SavedPlacesPanel
+              places={savedPlaces}
+              setPlaces={setSavedPlaces}
+              fires={filteredFires}
+              onPlaceAlert={handlePlaceAlert}
+            />
+          )}
+          {showTrustNotice && fires?.metadata && (
+            <TrustNotice metadata={fires.metadata} onClose={() => setShowTrustNotice(false)} />
+          )}
           {fires && (
             <TimeSlider
               fires={fires}
@@ -443,6 +512,7 @@ function App() {
                 showHeatmap={showHeatmap}
                 showClusters={showClusters}
                 showVegetation={showVegetation}
+                savedPlaces={savedPlaces}
               />
             </Suspense>
             {!showHeatmap && <MapLegend />}
@@ -472,12 +542,6 @@ function App() {
                 <span>{sidePanelStatus.detail}</span>
                 <strong>{relevantFiresLabel}</strong>
               </div>
-              {riskIndicators.argentinaFiresCount + riskIndicators.outsideChileFiresCount > 0 && (
-                <div className="side-panel-status-row">
-                  <span>Ocultos del mapa</span>
-                  <strong>{hiddenOutsideChileLabel}</strong>
-                </div>
-              )}
             </div>
           </div>
           <InfoPanel
