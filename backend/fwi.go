@@ -51,7 +51,56 @@ const (
 	defaultFFMC = 85.0
 	defaultDMC  = 6.0
 	defaultDC   = 15.0
+	fwiCacheTTL = 10 * time.Minute
 )
+
+type FWICache struct {
+	mu        sync.RWMutex
+	data      map[string]*FWIData
+	updatedAt time.Time
+}
+
+var (
+	fwiCache   = &FWICache{}
+	fwiFetchMu sync.Mutex
+)
+
+func (c *FWICache) GetFresh() (map[string]*FWIData, bool) {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	if len(c.data) == 0 || time.Since(c.updatedAt) > fwiCacheTTL {
+		return nil, false
+	}
+	return copyFWIMap(c.data), true
+}
+
+func (c *FWICache) GetAny() (map[string]*FWIData, bool) {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	if len(c.data) == 0 {
+		return nil, false
+	}
+	return copyFWIMap(c.data), true
+}
+
+func (c *FWICache) Set(data map[string]*FWIData) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.data = copyFWIMap(data)
+	c.updatedAt = time.Now()
+}
+
+func copyFWIMap(data map[string]*FWIData) map[string]*FWIData {
+	copied := make(map[string]*FWIData, len(data))
+	for k, v := range data {
+		if v == nil {
+			continue
+		}
+		value := *v
+		copied[k] = &value
+	}
+	return copied
+}
 
 // =============================================================================
 // Wind Grid Cache - Wind data for fire locations
@@ -493,8 +542,33 @@ var ChileanMonitoringPoints = []struct {
 	{"Punta Arenas", -53.16, -70.91},
 }
 
-// FetchAllFWI fetches FWI for all monitoring points
+// FetchAllFWI fetches FWI for all monitoring points with a short shared cache.
 func FetchAllFWI() (map[string]*FWIData, error) {
+	if cached, ok := fwiCache.GetFresh(); ok {
+		return cached, nil
+	}
+
+	fwiFetchMu.Lock()
+	defer fwiFetchMu.Unlock()
+
+	if cached, ok := fwiCache.GetFresh(); ok {
+		return cached, nil
+	}
+
+	results, err := fetchAllFWIUncached()
+	if err != nil {
+		if stale, ok := fwiCache.GetAny(); ok {
+			log.Printf("Serving stale FWI data after refresh failure: %v", err)
+			return stale, nil
+		}
+		return nil, err
+	}
+
+	fwiCache.Set(results)
+	return copyFWIMap(results), nil
+}
+
+func fetchAllFWIUncached() (map[string]*FWIData, error) {
 	results := make(map[string]*FWIData)
 	var mu sync.Mutex
 	var wg sync.WaitGroup
@@ -534,10 +608,22 @@ func getFWIHandler(w http.ResponseWriter, r *http.Request) {
 	lat := r.URL.Query().Get("lat")
 	lon := r.URL.Query().Get("lon")
 
-	if lat != "" && lon != "" {
-		var latF, lonF float64
-		fmt.Sscanf(lat, "%f", &latF)
-		fmt.Sscanf(lon, "%f", &lonF)
+	if lat != "" || lon != "" {
+		if lat == "" || lon == "" {
+			http.Error(w, "lat and lon must be provided together", http.StatusBadRequest)
+			return
+		}
+
+		latF, err := parseCoordinateParam("lat", lat, -90, 90)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		lonF, err := parseCoordinateParam("lon", lon, -180, 180)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
 
 		fwi, err := FetchWeatherAndCalculateFWI(latF, lonF)
 		if err != nil {

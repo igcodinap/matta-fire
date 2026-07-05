@@ -41,6 +41,32 @@ const MapLegend = () => (
 const getFireCountry = (properties = {}) =>
   properties.country || (properties.region === 'unknown' ? 'Fuera de Chile' : 'Chile')
 
+const defaultFilters = {
+  source: 'all',
+  confidence: 'all',
+  intensity: 'all',
+  daynight: 'all',
+  region: 'all',
+  minFrp: 0,
+  maxFrp: 0,
+  chileOnly: true
+}
+
+function loadStoredFilters() {
+  if (typeof window === 'undefined') return defaultFilters
+
+  try {
+    const stored = localStorage.getItem('matta.filters.v1')
+    if (!stored) return defaultFilters
+
+    const parsed = JSON.parse(stored)
+    return { ...defaultFilters, ...parsed }
+  } catch (err) {
+    console.error('Failed to parse saved filters:', err)
+    return defaultFilters
+  }
+}
+
 // Check if current time is in peak fire hours (Chilean time)
 function isPeakFireHours() {
   const now = new Date()
@@ -73,16 +99,7 @@ function App() {
   const [isMobile, setIsMobile] = useState(() => isMobileDevice())
   const [activeSidePanel, setActiveSidePanel] = useState(() => (isMobileDevice() ? null : 'risk'))
   const [regions, setRegions] = useState(() => ({}))
-  const [filters, setFilters] = useState(() => ({
-    source: 'all',
-    confidence: 'all',
-    intensity: 'all',
-    daynight: 'all',
-    region: 'all',
-    minFrp: 0,
-    maxFrp: 0,
-    chileOnly: true
-  }))
+  const [filters, setFilters] = useState(() => loadStoredFilters())
   const [savedPlaces, setSavedPlaces] = useState(() => [])
   const [showFilters, setShowFilters] = useState(() => false)
   const [showTrustNotice, setShowTrustNotice] = useState(() => false)

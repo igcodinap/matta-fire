@@ -28,7 +28,7 @@ function QuemasPanel({ collapsed: controlledCollapsed, onToggle }) {
           </span>
         </h3>
         <span className="panel-header-side">
-          <span className="panel-header-meta">2025-2026</span>
+          <span className="panel-header-meta">CONAF vigente</span>
           <span className="info-toggle-icon">{collapsed ? '▶' : '▼'}</span>
         </span>
       </button>
@@ -36,27 +36,28 @@ function QuemasPanel({ collapsed: controlledCollapsed, onToggle }) {
       {!collapsed && (
         <div className="info-content">
           <section className="info-section">
-            <h4>Calendario CONAF 2025-2026</h4>
+            <h4>Estado oficial CONAF</h4>
             <p>
-              CONAF autoriza la quema controlada de residuos agricolas (rastrojos)
-              en periodos especificos por zona para prevenir incendios forestales.
+              Las quemas controladas dependen del calendario vigente por region o comuna
+              y pueden cambiar por resolucion de CONAF, condiciones meteorologicas,
+              PPDA/PDA o Boton Rojo.
             </p>
 
             <div className="info-table">
               <div className="info-table-row header">
-                <span>Zona</span>
-                <span>Periodo Autorizado</span>
-                <span>Regiones</span>
+                <span>Fuente</span>
+                <span>Revision</span>
+                <span>Uso recomendado</span>
               </div>
               <div className="info-table-row">
-                <strong>Norte</strong>
-                <span>Oct 2025 - Abr 2026</span>
-                <span>Arica a Metropolitana</span>
+                <strong>CONAF</strong>
+                <span>1 jul 2026</span>
+                <span>Ver estado vigente antes de cualquier aviso</span>
               </div>
               <div className="info-table-row">
-                <strong>Sur</strong>
-                <span>Mar 2026 - Nov 2026</span>
-                <span>O'Higgins a Magallanes</span>
+                <strong>Calendarios</strong>
+                <span>Modificables</span>
+                <span>No usar esta app como autorizacion</span>
               </div>
             </div>
           </section>
@@ -65,16 +66,15 @@ function QuemasPanel({ collapsed: controlledCollapsed, onToggle }) {
             <h4>Importante</h4>
             <ul>
               <li>
-                <strong>~60% de las quemas autorizadas</strong> ocurren en marzo, abril y mayo,
-                justo despues de la cosecha.
+                El aviso de quema controlada no autoriza quemar si existe restriccion
+                vigente para la region, comuna o predio.
               </li>
               <li>
-                <strong>Prohibicion total</strong> durante diciembre-febrero
-                (temporada critica de incendios forestales).
+                Revise el estado actualizado de CONAF el mismo dia de la actividad.
               </li>
               <li>
                 Todas las quemas requieren <strong>aviso previo a CONAF</strong>
-                y deben cumplir condiciones meteorologicas aprobadas.
+                y deben cumplir las condiciones indicadas por la autoridad.
               </li>
               <li>
                 Las quemas agricolas son una de las principales causas de
@@ -86,20 +86,20 @@ function QuemasPanel({ collapsed: controlledCollapsed, onToggle }) {
           <section className="info-section">
             <h4>Recursos</h4>
             <a
-              href="https://www.conaf.cl/centro-documental/calendario-de-quemas-controladas-zona-norte/"
+              href="https://www.conaf.cl/actualizacion-situacion-uso-del-fuego-en-regiones/"
               target="_blank"
               rel="noopener noreferrer"
               className="info-link"
             >
-              Calendario Zona Norte (CONAF)
+              Restricciones vigentes por region (CONAF)
             </a>
             <a
-              href="https://www.conaf.cl/centro-documental/calendario-de-quemas-controladas-2024-2025-zona-sur/"
+              href="https://www.conaf.cl/incendios/prevencion-y-mitigacion/uso-del-fuego/"
               target="_blank"
               rel="noopener noreferrer"
               className="info-link"
             >
-              Calendario Zona Sur (CONAF)
+              Uso del fuego y calendarios oficiales (CONAF)
             </a>
             <a
               href="https://www.chileatiende.gob.cl/fichas/742-aviso-de-quema-controlada"

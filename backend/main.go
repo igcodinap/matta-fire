@@ -30,6 +30,8 @@ type FireCache struct {
 	lastUpdated time.Time
 	nextRefresh time.Time
 	sourceCount map[string]int
+	lastError   string
+	lastErrorAt time.Time
 }
 
 var cache = &FireCache{
@@ -63,12 +65,33 @@ func (c *FireCache) Set(data FeatureCollection, counts map[string]int) {
 	c.lastUpdated = time.Now()
 	c.nextRefresh = time.Now().Add(1 * time.Minute)
 	c.sourceCount = counts
+	c.lastError = ""
+	c.lastErrorAt = time.Time{}
 }
 
 func (c *FireCache) GetNextRefresh() time.Time {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 	return c.nextRefresh
+}
+
+func (c *FireCache) SetError(err error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if err == nil {
+		c.lastError = ""
+		c.lastErrorAt = time.Time{}
+		return
+	}
+	c.lastError = err.Error()
+	c.lastErrorAt = time.Now()
+	c.nextRefresh = time.Now().Add(1 * time.Minute)
+}
+
+func (c *FireCache) GetError() (string, time.Time) {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return c.lastError, c.lastErrorAt
 }
 
 // =============================================================================
@@ -106,6 +129,8 @@ var hub = &WSHub{
 	register:   make(chan *WSClient, 100),
 	unregister: make(chan *WSClient, 100),
 }
+
+var fetchFromSourceFunc = fetchFromSource
 
 func (h *WSHub) run() {
 	for {
@@ -171,11 +196,6 @@ func fetchFIRMSData() error {
 		return fmt.Errorf("NASA_FIRMS_API_KEY not set")
 	}
 
-	// Log API key info for debugging (first/last 4 chars only)
-	if len(apiKey) > 8 {
-		log.Printf("API Key: %s...%s (len=%d)", apiKey[:4], apiKey[len(apiKey)-4:], len(apiKey))
-	}
-
 	var allFeatures []Feature
 	sourceCounts := make(map[string]int)
 	previousFeatures := make(map[string]bool)
@@ -183,7 +203,7 @@ func fetchFIRMSData() error {
 	// Get previous fire IDs for alert comparison
 	oldData, _ := cache.Get()
 	for _, f := range oldData.Features {
-		key := fmt.Sprintf("%f_%f_%s", f.Properties.Latitude, f.Properties.Longitude, f.Properties.AcqDate)
+		key := GetObservationID(f.Properties.GridID, f.Properties.Satellite, f.Properties.AcqDate, f.Properties.AcqTime)
 		previousFeatures[key] = true
 	}
 
@@ -207,7 +227,7 @@ func fetchFIRMSData() error {
 
 			log.Printf("Fetching %s data from %s...", source.Name, server)
 
-			features, lastErr = fetchFromSource(url, source.Name)
+			features, lastErr = fetchFromSourceFunc(url, source.Name)
 			if lastErr == nil {
 				break // Success, use this server
 			}
@@ -224,7 +244,7 @@ func fetchFIRMSData() error {
 
 		// Check for high-FRP alerts (new fires)
 		for _, f := range features {
-			key := fmt.Sprintf("%f_%f_%s", f.Properties.Latitude, f.Properties.Longitude, f.Properties.AcqDate)
+			key := GetObservationID(f.Properties.GridID, f.Properties.Satellite, f.Properties.AcqDate, f.Properties.AcqTime)
 			if !previousFeatures[key] && f.Properties.FRP >= 50 {
 				hub.BroadcastAlert(FireAlert{
 					Feature:   f,
@@ -233,6 +253,12 @@ func fetchFIRMSData() error {
 				})
 			}
 		}
+	}
+
+	if len(sourceCounts) == 0 {
+		err := fmt.Errorf("all FIRMS sources failed; preserving previous cache")
+		cache.SetError(err)
+		return err
 	}
 
 	// Build metadata
@@ -399,7 +425,7 @@ func parseRecord(record []string, colIndex map[string]int, sourceName string) (F
 	windSpeed, windDirection := windGrid.GetWindForLocation(lat, lon)
 
 	// Add to fire history (deduplication happens here)
-	fireRecord := fireHistory.AddDetection(lat, lon, frp, region, sourceName, windSpeed, windDirection)
+	fireRecord := fireHistory.AddDetection(lat, lon, frp, region, sourceName, acqDate, acqTime, observedAt, windSpeed, windDirection)
 
 	return Feature{
 		Type: "Feature",
@@ -558,6 +584,17 @@ func approximateChileArgentinaBorderLon(lat float64) (float64, bool) {
 	}
 
 	return 0, false
+}
+
+func parseCoordinateParam(name, value string, min, max float64) (float64, error) {
+	parsed, err := strconv.ParseFloat(strings.TrimSpace(value), 64)
+	if err != nil {
+		return 0, fmt.Errorf("invalid %s", name)
+	}
+	if parsed < min || parsed > max {
+		return 0, fmt.Errorf("%s out of range", name)
+	}
+	return parsed, nil
 }
 
 // pointInPolygon checks if a point (x, y) is inside a polygon using ray casting algorithm
@@ -770,20 +807,32 @@ func getHealthHandler(ctx context.Context, input *struct{}) (*HealthOutput, erro
 	data, lastUpdated := cache.Get()
 	sourceCounts := cache.GetSourceCount()
 	nextRefresh := cache.GetNextRefresh()
+	lastError, lastErrorAt := cache.GetError()
 
 	lastUpdatedStr := "never"
 	if !lastUpdated.IsZero() {
 		lastUpdatedStr = lastUpdated.Format(time.RFC3339)
 	}
 
+	status := "ok"
+	lastErrorAtStr := ""
+	if lastError != "" {
+		status = "degraded"
+		if !lastErrorAt.IsZero() {
+			lastErrorAtStr = lastErrorAt.Format(time.RFC3339)
+		}
+	}
+
 	return &HealthOutput{
 		Body: HealthStatus{
-			Status:      "ok",
+			Status:      status,
 			FireCount:   len(data.Features),
 			LastUpdated: lastUpdatedStr,
 			Sources:     sourceCounts,
 			RefreshRate: "1 minute",
 			NextRefresh: nextRefresh.Format(time.RFC3339),
+			LastError:   lastError,
+			LastErrorAt: lastErrorAtStr,
 		},
 	}, nil
 }
@@ -957,23 +1006,47 @@ func getWindHandler(w http.ResponseWriter, r *http.Request) {
 		lon = "-70.65"
 	}
 
+	latF, err := parseCoordinateParam("lat", lat, -90, 90)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	lonF, err := parseCoordinateParam("lon", lon, -180, 180)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
 	url := fmt.Sprintf(
-		"https://api.open-meteo.com/v1/forecast?latitude=%s&longitude=%s&current=wind_speed_10m,wind_direction_10m&timezone=America/Santiago",
-		lat, lon,
+		"https://api.open-meteo.com/v1/forecast?latitude=%.4f&longitude=%.4f&current=wind_speed_10m,wind_direction_10m&timezone=America/Santiago",
+		latF, lonF,
 	)
 
-	resp, err := http.Get(url)
+	req, err := http.NewRequestWithContext(r.Context(), http.MethodGet, url, nil)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadGateway)
+		return
+	}
 	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		http.Error(w, fmt.Sprintf("wind API returned status %d", resp.StatusCode), http.StatusBadGateway)
+		return
+	}
 
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 
-	body, _ := io.ReadAll(resp.Body)
-	w.Write(body)
+	if _, err := io.Copy(w, resp.Body); err != nil {
+		log.Printf("Wind response write error: %v", err)
+	}
 }
 
 // =============================================================================

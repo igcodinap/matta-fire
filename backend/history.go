@@ -12,32 +12,33 @@ import (
 // =============================================================================
 
 const (
-	GridSize      = 0.01  // ~1.1km at Chile's latitude
-	MaxFireAge    = 24 * time.Hour
+	GridSize        = 0.01 // ~1.1km at Chile's latitude
+	MaxFireAge      = 24 * time.Hour
 	CleanupInterval = 1 * time.Hour
 )
 
 // FireRecord represents a unique fire location with tracking data
 type FireRecord struct {
 	GridID         string    `json:"grid_id"`
-	Latitude       float64   `json:"latitude"`       // Average lat of detections
-	Longitude      float64   `json:"longitude"`      // Average lon of detections
+	Latitude       float64   `json:"latitude"`  // Average lat of detections
+	Longitude      float64   `json:"longitude"` // Average lon of detections
 	FirstSeen      time.Time `json:"first_seen"`
 	LastSeen       time.Time `json:"last_seen"`
 	DetectionCount int       `json:"detection_count"`
-	MaxFRP         float64   `json:"max_frp"`        // Peak intensity
-	CurrentFRP     float64   `json:"current_frp"`    // Latest FRP
+	MaxFRP         float64   `json:"max_frp"`     // Peak intensity
+	CurrentFRP     float64   `json:"current_frp"` // Latest FRP
 	Region         string    `json:"region"`
-	Satellites     []string  `json:"satellites"`     // Which satellites detected it
+	Satellites     []string  `json:"satellites"` // Which satellites detected it
 	WindSpeed      float64   `json:"wind_speed"`
 	WindDirection  float64   `json:"wind_direction"`
-	Severity       string    `json:"severity"`       // minor, moderate, significant, major
+	Severity       string    `json:"severity"` // minor, moderate, significant, major
+	observedKeys   map[string]struct{}
 }
 
 // FireHistory manages the 24h fire history with deduplication
 type FireHistory struct {
-	mu     sync.RWMutex
-	fires  map[string]*FireRecord // key: grid_id
+	mu    sync.RWMutex
+	fires map[string]*FireRecord // key: grid_id
 }
 
 var fireHistory = &FireHistory{
@@ -51,19 +52,32 @@ func GetGridID(lat, lon float64) string {
 	return fmt.Sprintf("%.2f_%.2f", gridLat, gridLon)
 }
 
+func GetObservationID(gridID, satellite, acqDate, acqTime string) string {
+	return fmt.Sprintf("%s|%s|%s|%s", gridID, satellite, acqDate, acqTime)
+}
+
 // AddDetection adds or updates a fire detection
-func (h *FireHistory) AddDetection(lat, lon, frp float64, region, satellite string, windSpeed, windDir float64) *FireRecord {
+func (h *FireHistory) AddDetection(lat, lon, frp float64, region, satellite, acqDate, acqTime string, observedAt time.Time, windSpeed, windDir float64) *FireRecord {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
 	gridID := GetGridID(lat, lon)
-	now := time.Now()
+	if observedAt.IsZero() {
+		observedAt = time.Now().UTC()
+	}
+	observedAt = observedAt.UTC()
+	observedKey := GetObservationID(gridID, satellite, acqDate, acqTime)
 
 	if existing, ok := h.fires[gridID]; ok {
-		// Update existing fire
-		existing.LastSeen = now
+		if existing.observedKeys == nil {
+			existing.observedKeys = make(map[string]struct{})
+		}
+		if _, seen := existing.observedKeys[observedKey]; seen {
+			return copyFireRecord(existing)
+		}
+		existing.observedKeys[observedKey] = struct{}{}
+
 		existing.DetectionCount++
-		existing.CurrentFRP = frp
 		if frp > existing.MaxFRP {
 			existing.MaxFRP = frp
 		}
@@ -71,14 +85,21 @@ func (h *FireHistory) AddDetection(lat, lon, frp float64, region, satellite stri
 		n := float64(existing.DetectionCount)
 		existing.Latitude = (existing.Latitude*(n-1) + lat) / n
 		existing.Longitude = (existing.Longitude*(n-1) + lon) / n
+		if observedAt.Before(existing.FirstSeen) {
+			existing.FirstSeen = observedAt
+		}
+		if observedAt.After(existing.LastSeen) || observedAt.Equal(existing.LastSeen) {
+			existing.LastSeen = observedAt
+			existing.CurrentFRP = frp
+			existing.WindSpeed = windSpeed
+			existing.WindDirection = windDir
+		}
 		// Track satellites
 		if !containsString(existing.Satellites, satellite) {
 			existing.Satellites = append(existing.Satellites, satellite)
 		}
-		existing.WindSpeed = windSpeed
-		existing.WindDirection = windDir
 		existing.Severity = calculateSeverity(existing.DetectionCount, existing.MaxFRP, existing.DurationHours())
-		return existing
+		return copyFireRecord(existing)
 	}
 
 	// New fire
@@ -86,8 +107,8 @@ func (h *FireHistory) AddDetection(lat, lon, frp float64, region, satellite stri
 		GridID:         gridID,
 		Latitude:       lat,
 		Longitude:      lon,
-		FirstSeen:      now,
-		LastSeen:       now,
+		FirstSeen:      observedAt,
+		LastSeen:       observedAt,
 		DetectionCount: 1,
 		MaxFRP:         frp,
 		CurrentFRP:     frp,
@@ -95,10 +116,11 @@ func (h *FireHistory) AddDetection(lat, lon, frp float64, region, satellite stri
 		Satellites:     []string{satellite},
 		WindSpeed:      windSpeed,
 		WindDirection:  windDir,
-		Severity:       "minor",
+		Severity:       calculateSeverity(1, frp, 0),
+		observedKeys:   map[string]struct{}{observedKey: {}},
 	}
 	h.fires[gridID] = fire
-	return fire
+	return copyFireRecord(fire)
 }
 
 // DurationHours returns how long the fire has been burning
@@ -149,13 +171,13 @@ func calculateSeverity(detections int, maxFRP, hours float64) string {
 	// Determine severity
 	switch {
 	case score >= 6:
-		return "major"       // 🔴 Major fire - high priority
+		return "major" // 🔴 Major fire - high priority
 	case score >= 4:
 		return "significant" // 🟠 Significant - needs attention
 	case score >= 2:
-		return "moderate"    // 🟡 Moderate - monitor
+		return "moderate" // 🟡 Moderate - monitor
 	default:
-		return "minor"       // 🟢 Minor - new or small
+		return "minor" // 🟢 Minor - new or small
 	}
 }
 
@@ -181,6 +203,7 @@ func (h *FireHistory) Cleanup() int {
 func copyFireRecord(f *FireRecord) *FireRecord {
 	copy := *f
 	copy.Satellites = append([]string{}, f.Satellites...)
+	copy.observedKeys = nil
 	return &copy
 }
 

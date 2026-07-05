@@ -99,6 +99,8 @@ type HealthStatus struct {
 	Sources     map[string]int `json:"sources"` // Count per satellite
 	RefreshRate string         `json:"refresh_rate"`
 	NextRefresh string         `json:"next_refresh"`
+	LastError   string         `json:"last_error,omitempty"`
+	LastErrorAt string         `json:"last_error_at,omitempty"`
 }
 
 type ExportInput struct {

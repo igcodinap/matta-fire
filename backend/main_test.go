@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/csv"
 	"encoding/json"
+	"errors"
+	"net/http"
 	"net/http/httptest"
 	"strconv"
 	"strings"
@@ -341,6 +343,118 @@ func TestCSVExportHonorsFilters(t *testing.T) {
 	}
 	if got := rows[1][20]; got != "test notice" {
 		t.Fatalf("CSV source_notice column = %q, want test notice", got)
+	}
+}
+
+func TestFireHistoryDeduplicatesRepeatedObservation(t *testing.T) {
+	history := &FireHistory{fires: make(map[string]*FireRecord)}
+	observedAt := time.Date(2026, 1, 21, 12, 30, 0, 0, time.UTC)
+
+	first := history.AddDetection(-37.123, -72.456, 60, "VIII", "VIIRS NOAA-20", "2026-01-21", "1230", observedAt, 18, 210)
+	if first.DetectionCount != 1 {
+		t.Fatalf("first detection count = %d, want 1", first.DetectionCount)
+	}
+
+	repeated := history.AddDetection(-37.123, -72.456, 60, "VIII", "VIIRS NOAA-20", "2026-01-21", "1230", observedAt, 18, 210)
+	if repeated.DetectionCount != 1 {
+		t.Fatalf("repeated observation count = %d, want 1", repeated.DetectionCount)
+	}
+	if !repeated.FirstSeen.Equal(observedAt) || !repeated.LastSeen.Equal(observedAt) {
+		t.Fatalf("repeated observation changed seen bounds: first=%s last=%s", repeated.FirstSeen, repeated.LastSeen)
+	}
+
+	laterObservedAt := observedAt.Add(30 * time.Minute)
+	later := history.AddDetection(-37.124, -72.457, 80, "VIII", "VIIRS NOAA-20", "2026-01-21", "1300", laterObservedAt, 22, 220)
+	if later.DetectionCount != 2 {
+		t.Fatalf("new acquisition count = %d, want 2", later.DetectionCount)
+	}
+	if !later.FirstSeen.Equal(observedAt) || !later.LastSeen.Equal(laterObservedAt) {
+		t.Fatalf("new acquisition seen bounds: first=%s last=%s", later.FirstSeen, later.LastSeen)
+	}
+}
+
+func TestFetchFIRMSDataPreservesCacheOnTotalFailure(t *testing.T) {
+	oldCache := cache
+	oldFetch := fetchFromSourceFunc
+	defer func() {
+		cache = oldCache
+		fetchFromSourceFunc = oldFetch
+	}()
+
+	cache = &FireCache{
+		data: FeatureCollection{
+			Type:     "FeatureCollection",
+			Features: []Feature{},
+		},
+		sourceCount: make(map[string]int),
+	}
+
+	previous := FeatureCollection{
+		Type: "FeatureCollection",
+		Features: []Feature{
+			testFeature("existing", "Chile", "VIII", "high", "VIIRS NOAA-20", "h", "D", time.Date(2026, 1, 21, 12, 0, 0, 0, time.UTC).Unix(), 50),
+		},
+	}
+	cache.Set(previous, map[string]int{"VIIRS NOAA-20": 1})
+
+	t.Setenv("NASA_FIRMS_API_KEY", "test-key")
+	fetchFromSourceFunc = func(url, sourceName string) ([]Feature, error) {
+		return nil, errors.New("upstream down")
+	}
+
+	if err := fetchFIRMSData(); err == nil {
+		t.Fatal("fetchFIRMSData returned nil error, want total outage error")
+	}
+
+	got, _ := cache.Get()
+	if len(got.Features) != 1 || got.Features[0].Properties.GridID != "existing" {
+		t.Fatalf("cache was not preserved after total outage: %#v", got.Features)
+	}
+
+	health, err := getHealthHandler(context.Background(), &struct{}{})
+	if err != nil {
+		t.Fatalf("getHealthHandler returned error: %v", err)
+	}
+	if health.Body.Status != "degraded" {
+		t.Fatalf("health status = %q, want degraded", health.Body.Status)
+	}
+	if health.Body.LastError == "" {
+		t.Fatal("health last_error is empty after total outage")
+	}
+}
+
+func TestCoordinateHandlersRejectInvalidCoordinates(t *testing.T) {
+	tests := []struct {
+		name   string
+		path   string
+		handle func(http.ResponseWriter, *http.Request)
+	}{
+		{
+			name:   "fwi invalid lat",
+			path:   "/api/fwi?lat=bad&lon=-70.65",
+			handle: getFWIHandler,
+		},
+		{
+			name:   "fwi missing lon",
+			path:   "/api/fwi?lat=-33.45",
+			handle: getFWIHandler,
+		},
+		{
+			name:   "wind out of range lat",
+			path:   "/api/wind?lat=-999&lon=-70.65",
+			handle: getWindHandler,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, tt.path, nil)
+			rec := httptest.NewRecorder()
+			tt.handle(rec, req)
+			if rec.Code != http.StatusBadRequest {
+				t.Fatalf("%s status = %d, want %d; body=%s", tt.path, rec.Code, http.StatusBadRequest, rec.Body.String())
+			}
+		})
 	}
 }
 
