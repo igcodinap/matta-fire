@@ -1,0 +1,55 @@
+backend/types.go
+  s_efeacb91631f5e::t_6e50b98b1ef1d1 102-103
+frontend/src/App.jsx
+  s_efeacb91631f5e::t_1698949e7c7bb9 44-69,102
+backend/main_test.go
+  s_efeacb91631f5e::t_a8f25842809fcb 7-8,349-459
+  s_efeacb91631f5e::t_0df611bff1a3ca 460
+frontend/src/QuemasPanel.jsx
+  s_efeacb91631f5e::t_17502f1eeb6132 31,39,41-43,48-50,53-55,58-60,69-70,73,77,89,94,97,102
+backend/main.go
+  s_efeacb91631f5e::t_f097e328b477ef 206
+  s_efeacb91631f5e::t_f71a15efc9fd9b 428
+  s_efeacb91631f5e::t_3e901b1bc94194 810,817-825,828,834-835
+  s_efeacb91631f5e::t_917a18d1f6987f 33-34,68-69,78-96,133-134,258-261
+  s_efeacb91631f5e::t_25d7823db0a1c1 589-599
+  s_efeacb91631f5e::t_3c8df3443d3544 262,1009-1019,1021-1022,1025,1030-1036,1039-1043,1047-1049
+  s_efeacb91631f5e::t_3987b86dda42d8 230,247
+  s_efeacb91631f5e::t_eed14823b57eec 263
+backend/fwi.go
+  s_efeacb91631f5e::t_96ca831ba6ca48 611-626
+  s_efeacb91631f5e::t_bc39dd740106d1 54,57-104,545,547-571
+backend/history.go
+  s_efeacb91631f5e::t_34fdc6135790bd 206
+  s_efeacb91631f5e::t_8ce4acd99a3d79 15-16,23-24,28-29,31,34,40-41,174,178,180
+  s_efeacb91631f5e::t_fd659d3f17db5a 35,55-58,60,65-69,72-79,88-96,102,110-111,119-120,123
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "16913900773bc2556a3b4972a21165b855e8785a",
+  "prompts": {
+    "1bea8f750ac9aa48": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019dfe00-40af-7b70-92be-c5d4aaf98d02",
+        "model": "gpt-5.5"
+      },
+      "human_author": "igcodinap <igcodinap@users.noreply.github.com>",
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 0,
+      "overriden_lines": 0
+    }
+  },
+  "sessions": {
+    "s_efeacb91631f5e": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f2f81-f3af-7160-ab23-f9d398a29676",
+        "model": "gpt-5.5"
+      },
+      "human_author": "igcodinap <igcodinap@users.noreply.github.com>"
+    }
+  }
+}
