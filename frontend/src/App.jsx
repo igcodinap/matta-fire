@@ -81,6 +81,12 @@ function loadStoredFilters() {
   }
 }
 
+function getDataTimestamp(data) {
+  const timestamp = data?.metadata?.fetched_at || data?.metadata?.last_updated
+  const parsed = timestamp ? new Date(timestamp) : null
+  return parsed && !Number.isNaN(parsed.getTime()) ? parsed : new Date()
+}
+
 // Check if current time is in peak fire hours (Chilean time)
 function isPeakFireHours() {
   const now = new Date()
@@ -261,7 +267,7 @@ function App() {
 
       if (message.type === 'update') {
         setFires(message.payload)
-        setLastUpdated(new Date())
+        setLastUpdated(getDataTimestamp(message.payload))
         setLoading(false)
       } else if (message.type === 'alert') {
         const alert = message.payload
@@ -311,7 +317,7 @@ function App() {
       if (!response.ok) throw new Error(`HTTP error: ${response.status}`)
       const data = await response.json()
       setFires(data)
-      setLastUpdated(new Date())
+      setLastUpdated(getDataTimestamp(data))
       setError(null)
     } catch (err) {
       console.error('Error fetching fire data:', err)

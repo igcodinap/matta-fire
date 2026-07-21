@@ -423,6 +423,96 @@ func TestFetchFIRMSDataPreservesCacheOnTotalFailure(t *testing.T) {
 	}
 }
 
+func TestFetchFIRMSDataMarksHealthDegradedWhenAPIKeyIsMissing(t *testing.T) {
+	oldCache := cache
+	defer func() {
+		cache = oldCache
+	}()
+
+	cache = &FireCache{
+		data: FeatureCollection{
+			Type:     "FeatureCollection",
+			Features: []Feature{},
+		},
+		sourceCount: make(map[string]int),
+	}
+	t.Setenv("NASA_FIRMS_API_KEY", "")
+
+	if err := fetchFIRMSData(); err == nil {
+		t.Fatal("fetchFIRMSData returned nil error without an API key")
+	}
+
+	health, err := getHealthHandler(context.Background(), &struct{}{})
+	if err != nil {
+		t.Fatalf("getHealthHandler returned error: %v", err)
+	}
+	if health.Body.Status != "degraded" {
+		t.Fatalf("health status = %q, want degraded", health.Body.Status)
+	}
+	if health.Body.LastError == "" {
+		t.Fatal("health last_error is empty without an API key")
+	}
+}
+
+func TestFetchAllFWIPreservesCachedCitiesOnPartialRefresh(t *testing.T) {
+	oldCache := fwiCache
+	oldFetch := fetchWeatherAndCalculateFWIFunc
+	defer func() {
+		fwiCache = oldCache
+		fetchWeatherAndCalculateFWIFunc = oldFetch
+	}()
+
+	previous := make(map[string]*FWIData, len(ChileanMonitoringPoints))
+	for _, point := range ChileanMonitoringPoints {
+		previous[point.Name] = &FWIData{Location: point.Name, FWI: 10}
+	}
+	fwiCache = &FWICache{}
+	fwiCache.Set(previous)
+	fwiCache.mu.Lock()
+	fwiCache.updatedAt = time.Now().Add(-fwiCacheTTL - time.Second)
+	fwiCache.mu.Unlock()
+
+	firstPoint := ChileanMonitoringPoints[0]
+	fetchWeatherAndCalculateFWIFunc = func(lat, lon float64) (*FWIData, error) {
+		if lat == firstPoint.Lat && lon == firstPoint.Lon {
+			return &FWIData{FWI: 42}, nil
+		}
+		return nil, errors.New("upstream down")
+	}
+
+	got, err := FetchAllFWI()
+	if err != nil {
+		t.Fatalf("FetchAllFWI returned error: %v", err)
+	}
+	if len(got) != len(ChileanMonitoringPoints) {
+		t.Fatalf("FetchAllFWI returned %d cities, want %d", len(got), len(ChileanMonitoringPoints))
+	}
+	if got[firstPoint.Name].FWI != 42 {
+		t.Fatalf("fresh FWI for %s = %v, want 42", firstPoint.Name, got[firstPoint.Name].FWI)
+	}
+	if got["Santiago"].FWI != 10 {
+		t.Fatalf("stale FWI for Santiago = %v, want 10", got["Santiago"].FWI)
+	}
+
+	cached, ok := fwiCache.GetAny()
+	if !ok {
+		t.Fatal("FWI cache was unexpectedly emptied after a partial refresh")
+	}
+	if cached[firstPoint.Name].FWI != 10 {
+		t.Fatalf("partial refresh replaced cached FWI = %v, want 10", cached[firstPoint.Name].FWI)
+	}
+}
+
+func TestParseCoordinateParamRejectsNonFiniteValues(t *testing.T) {
+	for _, value := range []string{"NaN", "+Inf", "-Inf"} {
+		t.Run(value, func(t *testing.T) {
+			if _, err := parseCoordinateParam("lat", value, -90, 90); err == nil {
+				t.Fatalf("parseCoordinateParam accepted %q", value)
+			}
+		})
+	}
+}
+
 func TestCoordinateHandlersRejectInvalidCoordinates(t *testing.T) {
 	tests := []struct {
 		name   string

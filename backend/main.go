@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"math"
 	"net/http"
 	"os"
 	"strconv"
@@ -203,7 +204,9 @@ const (
 func fetchFIRMSData() error {
 	apiKey := strings.TrimSpace(os.Getenv("NASA_FIRMS_API_KEY"))
 	if apiKey == "" {
-		return fmt.Errorf("NASA_FIRMS_API_KEY not set")
+		err := fmt.Errorf("NASA_FIRMS_API_KEY not set")
+		cache.SetError(err)
+		return err
 	}
 
 	var allFeatures []Feature
@@ -606,6 +609,9 @@ func approximateChileArgentinaBorderLon(lat float64) (float64, bool) {
 func parseCoordinateParam(name, value string, min, max float64) (float64, error) {
 	parsed, err := strconv.ParseFloat(strings.TrimSpace(value), 64)
 	if err != nil {
+		return 0, fmt.Errorf("invalid %s", name)
+	}
+	if math.IsNaN(parsed) || math.IsInf(parsed, 0) {
 		return 0, fmt.Errorf("invalid %s", name)
 	}
 	if parsed < min || parsed > max {

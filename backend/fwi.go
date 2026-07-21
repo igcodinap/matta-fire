@@ -61,8 +61,9 @@ type FWICache struct {
 }
 
 var (
-	fwiCache   = &FWICache{}
-	fwiFetchMu sync.Mutex
+	fwiCache                        = &FWICache{}
+	fwiFetchMu                      sync.Mutex
+	fetchWeatherAndCalculateFWIFunc = FetchWeatherAndCalculateFWI
 )
 
 func (c *FWICache) GetFresh() (map[string]*FWIData, bool) {
@@ -555,13 +556,22 @@ func FetchAllFWI() (map[string]*FWIData, error) {
 		return cached, nil
 	}
 
+	stale, hasStale := fwiCache.GetAny()
 	results, err := fetchAllFWIUncached()
 	if err != nil {
-		if stale, ok := fwiCache.GetAny(); ok {
+		if hasStale {
 			log.Printf("Serving stale FWI data after refresh failure: %v", err)
 			return stale, nil
 		}
 		return nil, err
+	}
+	if hasStale && len(results) < len(ChileanMonitoringPoints) {
+		merged := copyFWIMap(stale)
+		for location, data := range results {
+			merged[location] = data
+		}
+		log.Printf("Serving partial FWI refresh for %d/%d locations while preserving stale entries", len(results), len(ChileanMonitoringPoints))
+		return merged, nil
 	}
 
 	fwiCache.Set(results)
@@ -577,7 +587,7 @@ func fetchAllFWIUncached() (map[string]*FWIData, error) {
 		wg.Add(1)
 		go func(name string, lat, lon float64) {
 			defer wg.Done()
-			fwi, err := FetchWeatherAndCalculateFWI(lat, lon)
+			fwi, err := fetchWeatherAndCalculateFWIFunc(lat, lon)
 			if err != nil {
 				log.Printf("FWI fetch error for %s: %v", name, err)
 				return
