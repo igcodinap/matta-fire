@@ -38,6 +38,20 @@ const MapLegend = () => (
   </div>
 )
 
+// Heatmap mode has no markers — explain what the blobs mean
+const HeatLegend = () => (
+  <div className="map-legend">
+    <div className="map-legend-title">Mapa de calor</div>
+    <div className="map-legend-item">
+      <span className="map-legend-dot" style={{ backgroundColor: '#eab308' }} />
+      <span>Zonas de concentracion de focos</span>
+    </div>
+    <div className="map-legend-item">
+      <span>Colores mas intensos = mayor potencia (FRP)</span>
+    </div>
+  </div>
+)
+
 const getFireCountry = (properties = {}) =>
   properties.country || (properties.region === 'unknown' ? 'Fuera de Chile' : 'Chile')
 
@@ -79,7 +93,6 @@ function isPeakFireHours() {
 function App() {
   // Use function form for state initialization
   const [fires, setFires] = useState(() => null)
-  const [filteredFires, setFilteredFires] = useState(() => null)
   const [loading, setLoading] = useState(() => true)
   const [error, setError] = useState(() => null)
   const [lastUpdated, setLastUpdated] = useState(() => null)
@@ -104,16 +117,27 @@ function App() {
   const [showFilters, setShowFilters] = useState(() => false)
   const [showTrustNotice, setShowTrustNotice] = useState(() => false)
   const [showSavedPlaces, setShowSavedPlaces] = useState(() => false)
+  // Saved-place map picking: user clicks the map to set lat/lng
+  const [pickingPlace, setPickingPlace] = useState(() => false)
+  const [placeDraft, setPlaceDraft] = useState(() => null)
+  // Ticking clock for staleness display
+  const [now, setNow] = useState(() => Date.now())
 
   const wsRef = useRef(null)
   const reconnectTimeoutRef = useRef(null)
+  const reconnectAttemptsRef = useRef(0)
 
-  // Update current hour every minute for time-based risk indicators
+  // Update current hour every minute for time-based risk indicators,
+  // and tick the staleness clock every 30s so "hace X min" stays honest
   useEffect(() => {
     const interval = setInterval(() => {
       setCurrentHour(new Date().getHours())
-    }, 60000) // Check every minute
-    return () => clearInterval(interval)
+    }, 60000)
+    const tick = setInterval(() => setNow(Date.now()), 30000)
+    return () => {
+      clearInterval(interval)
+      clearInterval(tick)
+    }
   }, [])
 
   // Handle window resize for mobile detection
@@ -125,7 +149,28 @@ function App() {
     return () => window.removeEventListener('resize', handleResize)
   }, [])
 
-  // Calculate risk indicators
+  const { min: timeMin, max: timeMax } = timeRange
+
+  // Client-side filtering combining all filters.
+  // Everything the user sees (map, counts, indicators) derives from THIS set,
+  // so the numbers always match the map.
+  const filteredFires = useMemo(() => {
+    if (!fires?.features) return null
+
+    const filtered = filterFires(fires.features, filters, timeRange, fires.metadata)
+
+    return {
+      ...fires,
+      features: filtered,
+      metadata: {
+        ...fires.metadata,
+        total_count: filtered.length,
+        totalCount: filtered.length
+      }
+    }
+  }, [fires, filters, timeRange])
+
+  // Calculate risk indicators from the VISIBLE fire set
   const riskIndicators = useMemo(() => {
     const peakHours = isPeakFireHours()
 
@@ -134,8 +179,8 @@ function App() {
     let majorFiresCount = 0
     let chileFiresCount = 0
 
-    if (fires?.features) {
-      fires.features.forEach(f => {
+    if (filteredFires?.features) {
+      filteredFires.features.forEach(f => {
         const props = f.properties
         if (getFireCountry(props) !== 'Chile') return
 
@@ -153,7 +198,7 @@ function App() {
       majorFiresCount,
       chileFiresCount
     }
-  }, [fires, currentHour])
+  }, [filteredFires, currentHour])
 
   const sidePanelStatus = useMemo(() => {
     if (riskIndicators.hasHighWind) {
@@ -181,8 +226,9 @@ function App() {
 
   const relevantFiresLabel = useMemo(() => {
     const count = riskIndicators.majorFiresCount
-    return count === 1 ? '1 relevante' : `${count} relevantes`
-  }, [riskIndicators.majorFiresCount])
+    const total = riskIndicators.chileFiresCount
+    return count === 1 ? `1 de ${total} relevante` : `${count} de ${total} relevantes`
+  }, [riskIndicators.majorFiresCount, riskIndicators.chileFiresCount])
 
   useEffect(() => {
     if (!isMobile && activeSidePanel === null) {
@@ -194,7 +240,7 @@ function App() {
     setActiveSidePanel(prev => (prev === panel ? null : panel))
   }, [])
 
-  // WebSocket connection
+  // WebSocket connection with exponential backoff reconnect
   const connectWebSocket = useCallback(() => {
     // Use secure WebSocket in production, regular in development
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
@@ -206,6 +252,7 @@ function App() {
 
     ws.onopen = () => {
       console.log('WebSocket connected')
+      reconnectAttemptsRef.current = 0
       setWsConnected(true)
     }
 
@@ -234,7 +281,10 @@ function App() {
     ws.onclose = () => {
       console.log('WebSocket disconnected')
       setWsConnected(false)
-      reconnectTimeoutRef.current = setTimeout(connectWebSocket, 3000)
+      // Backoff: 3s, 6s, 12s, 24s, capped at 30s
+      const attempt = reconnectAttemptsRef.current++
+      const delay = Math.min(3000 * Math.pow(2, attempt), 30000)
+      reconnectTimeoutRef.current = setTimeout(connectWebSocket, delay)
     }
 
     ws.onerror = (err) => {
@@ -293,25 +343,6 @@ function App() {
       .catch(console.error)
   }, [])
 
-  const { min: timeMin, max: timeMax } = timeRange
-
-  // Client-side filtering combining all filters
-  const computedFilteredFires = useMemo(() => {
-    if (!fires?.features) return null
-
-    const filtered = filterFires(fires.features, filters, timeRange, fires.metadata)
-
-    return {
-      ...fires,
-      features: filtered,
-      metadata: {
-        ...fires.metadata,
-        total_count: filtered.length,
-        totalCount: filtered.length
-      }
-    }
-  }, [fires, filters, timeRange])
-
   // Save filters to localStorage
   useEffect(() => {
     localStorage.setItem('matta.filters.v1', JSON.stringify(filters))
@@ -334,11 +365,6 @@ function App() {
     localStorage.setItem('matta.savedPlaces.v1', JSON.stringify(savedPlaces))
   }, [savedPlaces])
 
-  // Sync filtered fires state with computed value
-  useEffect(() => {
-    setFilteredFires(computedFilteredFires)
-  }, [computedFilteredFires])
-
   const toggleTheme = useCallback(() => {
     setTheme(prev => {
       const newTheme = prev === 'dark' ? 'light' : 'dark'
@@ -355,16 +381,45 @@ function App() {
     setAlerts(prev => [alert, ...prev.slice(0, 9)])
   }, [])
 
+  // Data freshness — the single most important trust signal in this app
+  const dataAgeMinutes = useMemo(() => {
+    if (!lastUpdated) return null
+    return Math.max(0, Math.floor((now - lastUpdated.getTime()) / 60000))
+  }, [now, lastUpdated])
+
+  // Refresh cadence is 1 min; anything older than 3 min means the pipe is stale
+  const isStale = dataAgeMinutes !== null && dataAgeMinutes >= 3
+
+  const formatDataAge = useCallback((minutes) => {
+    if (minutes === null) return ''
+    if (minutes < 1) return 'ahora'
+    if (minutes < 60) return `hace ${minutes} min`
+    const hours = Math.floor(minutes / 60)
+    return `hace ${hours} h`
+  }, [])
+
   const getStatusText = useCallback(() => {
     if (loading && !fires) return 'Cargando datos...'
     if (error) return `Error: ${error}`
     if (fires?.features) {
       const chileCount = riskIndicators.chileFiresCount
       const time = lastUpdated?.toLocaleTimeString('es-CL') || ''
-      return `${chileCount} focos en Chile · Actualizado ${time}`
+      const age = dataAgeMinutes !== null ? ` (${formatDataAge(dataAgeMinutes)})` : ''
+      return `${chileCount} focos en Chile · Actualizado ${time}${age}`
     }
     return 'Sin datos'
-  }, [loading, fires, error, lastUpdated, riskIndicators])
+  }, [loading, fires, error, lastUpdated, riskIndicators, dataAgeMinutes, formatDataAge])
+
+  // Saved-place map picking flow
+  const handleStartPlacePick = useCallback(() => {
+    setPickingPlace(true)
+  }, [])
+
+  const handleMapClick = useCallback((latlng) => {
+    if (!pickingPlace) return
+    setPlaceDraft({ lat: latlng.lat.toFixed(5), lng: latlng.lng.toFixed(5) })
+    setPickingPlace(false)
+  }, [pickingPlace])
 
   const buildExportParams = useCallback((format) => {
     const params = new URLSearchParams({ format })
@@ -393,14 +448,14 @@ function App() {
           </div>
         </div>
         <div className="header-right">
-          {!isMobile && <span className="status-text">{getStatusText()}</span>}
+          <span className={`status-text ${isStale ? 'stale' : ''}`} aria-live="polite">{getStatusText()}</span>
           <div className="header-controls">
             <button
               className={`toggle-btn ${showFilters ? 'active' : ''}`}
               onClick={() => setShowFilters(!showFilters)}
               title="Filtrar incendios"
             >
-              {isMobile ? 'F' : 'Filtros'}
+              Filtros
             </button>
             <button
               className="toggle-btn export-btn"
@@ -409,7 +464,7 @@ function App() {
               }}
               title="Exportar CSV"
             >
-              {isMobile ? 'CSV' : 'CSV'}
+              CSV
             </button>
             <button
               className="toggle-btn export-btn"
@@ -418,42 +473,42 @@ function App() {
               }}
               title="Exportar GeoJSON"
             >
-              {isMobile ? 'GJ' : 'GeoJSON'}
+              GeoJSON
             </button>
             <button
               className={`toggle-btn ${showTrustNotice ? 'active' : ''}`}
               onClick={() => setShowTrustNotice(!showTrustNotice)}
               title="Informacion de fuentes"
             >
-              {isMobile ? 'i' : 'Info'}
+              Info
             </button>
             <button
               className={`toggle-btn ${showSavedPlaces ? 'active' : ''}`}
               onClick={() => setShowSavedPlaces(!showSavedPlaces)}
               title="Lugares guardados"
             >
-              {isMobile ? '📍' : 'Lugares'}
+              Lugares
             </button>
             <button
               className={`toggle-btn ${showHeatmap ? 'active' : ''}`}
               onClick={() => setShowHeatmap(!showHeatmap)}
               title="Ver zonas de mayor concentracion de incendios"
             >
-              {isMobile ? '🔥' : 'Mapa de calor'}
+              {isMobile ? 'Calor' : 'Mapa de calor'}
             </button>
             <button
               className={`toggle-btn ${showVegetation ? 'active' : ''}`}
               onClick={() => setShowVegetation(!showVegetation)}
               title="Muestra zonas con vegetacion que pueden arder"
             >
-              {isMobile ? '🌿' : 'Vegetacion'}
+              {isMobile ? 'Vegetac.' : 'Vegetacion'}
             </button>
             <button
               className={`toggle-btn ${showClusters ? 'active' : ''}`}
               onClick={() => setShowClusters(!showClusters)}
               title="Agrupa focos cercanos para ver mejor el mapa"
             >
-              {isMobile ? '⊕' : 'Agrupar'}
+              Agrupar
             </button>
             <button className="theme-btn" onClick={toggleTheme} title="Cambiar tema claro/oscuro">
               {theme === 'dark' ? '☀️' : '🌙'}
@@ -464,14 +519,29 @@ function App() {
 
       {/* Alerts */}
       {alerts.length > 0 && (
-        <div className="alerts-container">
+        <div className="alerts-container" role="log" aria-live="polite" aria-label="Alertas de incendio">
           {alerts.map((alert, index) => (
-            <div key={index} className="alert-item">
+            <div key={index} className="alert-item" role="alert">
               <span className="alert-icon">🔥</span>
               <span className="alert-message">{alert.message}</span>
-              <button className="alert-dismiss" onClick={() => dismissAlert(index)}>×</button>
+              <button className="alert-dismiss" onClick={() => dismissAlert(index)} aria-label="Descartar alerta">×</button>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Stale data warning — a dead feed must degrade loudly */}
+      {isStale && (
+        <div className="risk-banner stale-data" role="alert">
+          <span className="risk-icon">📡</span>
+          <div className="risk-content">
+            <strong>DATOS DESACTUALIZADOS</strong>
+            <span>
+              {wsConnected
+                ? `Sin datos nuevos ${formatDataAge(dataAgeMinutes)}. Los focos mostrados pueden haber cambiado.`
+                : `Sin conexion en vivo. Mostrando datos de ${lastUpdated?.toLocaleTimeString('es-CL')} (${formatDataAge(dataAgeMinutes)}).`}
+            </span>
+          </div>
         </div>
       )}
 
@@ -491,22 +561,15 @@ function App() {
 
       <div className="main-content">
         <div className="map-wrapper">
-          {showFilters && (
-            <FilterPanel
-              filters={filters}
-              setFilters={setFilters}
-              regions={regions}
-              isMobile={isMobile}
-              isOpen={showFilters}
-              onClose={() => setShowFilters(false)}
-            />
-          )}
           {showSavedPlaces && (
             <SavedPlacesPanel
               places={savedPlaces}
               setPlaces={setSavedPlaces}
-              fires={filteredFires}
+              fires={fires}
               onPlaceAlert={handlePlaceAlert}
+              draftCoords={placeDraft}
+              pickingPlace={pickingPlace}
+              onStartPlacePick={handleStartPlacePick}
             />
           )}
           {showTrustNotice && fires?.metadata && (
@@ -519,6 +582,16 @@ function App() {
             />
           )}
           <div className="map-container">
+            {showFilters && (
+              <FilterPanel
+                filters={filters}
+                setFilters={setFilters}
+                regions={regions}
+                isMobile={isMobile}
+                isOpen={showFilters}
+                onClose={() => setShowFilters(false)}
+              />
+            )}
             {loading && !fires && (
               <div className="loading-overlay">Cargando datos satelitales...</div>
             )}
@@ -530,9 +603,11 @@ function App() {
                 showClusters={showClusters}
                 showVegetation={showVegetation}
                 savedPlaces={savedPlaces}
+                onMapClick={handleMapClick}
+                pickingPlace={pickingPlace}
               />
             </Suspense>
-            {!showHeatmap && <MapLegend />}
+            {showHeatmap ? <HeatLegend /> : <MapLegend />}
           </div>
         </div>
 

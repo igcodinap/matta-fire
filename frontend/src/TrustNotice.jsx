@@ -1,7 +1,7 @@
 import React from 'react'
 
-const DEFAULT_SOURCE_NOTICE = 'NASA FIRMS active fire detections are satellite observations and may be delayed or include false positives.'
-const DEFAULT_OFFICIAL_NOTICE = 'Matta Fire is informational and does not replace CONAF, SENAPRED, Bomberos, or local authority instructions.'
+const DEFAULT_SOURCE_NOTICE = 'Las detecciones de incendios activos de NASA FIRMS son observaciones satelitales y pueden estar retrasadas o incluir falsos positivos.'
+const DEFAULT_OFFICIAL_NOTICE = 'Matta Fire es informativo y no reemplaza a CONAF, SENAPRED, Bomberos ni las instrucciones de las autoridades locales.'
 
 function TrustNotice({ metadata, onClose }) {
   const sourceNotice = metadata?.source_notice || DEFAULT_SOURCE_NOTICE

@@ -133,7 +133,7 @@ function FWIPanel({ isMobile, collapsed: controlledCollapsed, onToggle }) {
           )}
         </h3>
         <span className="panel-header-side">
-          {selectedData && <span className="panel-header-meta">{selectedData.fwi}</span>}
+          {selectedData && <span className="panel-header-meta" title="Indice de Clima de Fuego (FWI)">FWI {selectedData.fwi}</span>}
           <span className="collapse-icon">{collapsed ? '▶' : '▼'}</span>
         </span>
       </button>

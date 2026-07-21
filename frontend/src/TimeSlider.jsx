@@ -124,8 +124,9 @@ function TimeSlider({ fires, onTimeRangeChange }) {
       <div className="slider-container">
         <div className="time-labels">
           <span>{formatTime(timeBounds.min)}</span>
-          <span className="current-time">
-            {formatTime(currentEndTime)}
+          <span className="current-time" aria-live="polite">
+            {/* Hide the center label at the extremes — it duplicates an end label */}
+            {currentTime > 2 && currentTime < 98 ? formatTime(currentEndTime) : ''}
           </span>
           <span>{formatTime(timeBounds.max)}</span>
         </div>
@@ -137,6 +138,7 @@ function TimeSlider({ fires, onTimeRangeChange }) {
           value={currentTime}
           onChange={(e) => setCurrentTime(parseFloat(e.target.value))}
           className="time-range"
+          aria-label="Rango de tiempo de detecciones"
         />
 
         <div className="window-control">

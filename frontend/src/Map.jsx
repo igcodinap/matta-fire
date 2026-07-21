@@ -1,5 +1,5 @@
 import React, { useMemo, useEffect } from 'react'
-import { MapContainer, TileLayer, CircleMarker, Marker, Popup, useMap, GeoJSON, WMSTileLayer, Circle } from 'react-leaflet'
+import { MapContainer, TileLayer, CircleMarker, Marker, Popup, useMap, GeoJSON, WMSTileLayer, Circle, useMapEvents } from 'react-leaflet'
 import MarkerClusterGroup from 'react-leaflet-cluster'
 import L from 'leaflet'
 import 'leaflet.heat'
@@ -7,6 +7,9 @@ import 'leaflet.heat'
 // Chile center coordinates
 const CHILE_CENTER = [-33.45, -70.65]
 const DEFAULT_ZOOM = 5
+
+// Keep the viewport on the Chilean theatre — avoid panning into the Atlantic/Pacific void
+const CHILE_MAX_BOUNDS = [[-58, -80], [-15, -60]]
 
 // Tile layers for themes
 const TILE_LAYERS = {
@@ -46,6 +49,44 @@ const getWindDirectionLabel = (degrees) => {
   const directions = ['Norte', 'Noreste', 'Este', 'Sureste', 'Sur', 'Suroeste', 'Oeste', 'Noroeste']
   const index = Math.round(degrees / 45) % 8
   return directions[index]
+}
+
+// Open-Meteo reports where the wind blows FROM (meteorological convention).
+// Fire spreads the opposite way — always show both to avoid dangerous confusion.
+const getSpreadDirectionLabel = (degrees) => {
+  if (degrees === undefined || degrees === null) return ''
+  return getWindDirectionLabel((degrees + 180) % 360)
+}
+
+// Human-readable age of a unix timestamp (seconds)
+const formatAge = (timestamp) => {
+  if (!timestamp) return null
+  const seconds = Math.floor(Date.now() / 1000 - timestamp)
+  if (seconds < 0) return null
+  const minutes = Math.floor(seconds / 60)
+  if (minutes < 1) return 'ahora'
+  if (minutes < 60) return `hace ${minutes} min`
+  const hours = Math.floor(minutes / 60)
+  if (hours < 48) return `hace ${hours} h`
+  const days = Math.floor(hours / 24)
+  return `hace ${days} d`
+}
+
+// Older detections fade — a 30h-old pixel must not look like a live fire
+const getAgeOpacity = (timestamp) => {
+  if (!timestamp) return 0.85
+  const hours = (Date.now() / 1000 - timestamp) / 3600
+  if (hours < 1) return 0.9
+  if (hours < 6) return 0.8
+  if (hours < 24) return 0.6
+  return 0.4
+}
+
+// "New" means few detections AND actually recent — not a day-old pixel
+const isNewFire = (props) => {
+  if (props.detection_count > 2) return false
+  if (!props.timestamp) return true
+  return (Date.now() / 1000 - props.timestamp) < 6 * 3600
 }
 
 const getSeverityIcon = (severity) => {
@@ -118,21 +159,8 @@ function HeatmapLayer({ fires }) {
   return null
 }
 
-// Regional risk levels based on CONAF historical data
-const REGIONAL_RISK = {
-  'IX': { level: 'critical', label: 'Zona Critica', icon: '🔴' },
-  'VIII': { level: 'high', label: 'Riesgo Alto', icon: '🟠' },
-  'VII': { level: 'high', label: 'Riesgo Alto', icon: '🟠' },
-  'V': { level: 'elevated', label: 'Riesgo Elevado', icon: '🟡' },
-  'VI': { level: 'elevated', label: 'Riesgo Elevado', icon: '🟡' },
-  'RM': { level: 'moderate', label: 'Riesgo Moderado', icon: '🟢' },
-  'XVI': { level: 'elevated', label: 'Riesgo Elevado', icon: '🟡' },
-  'IV': { level: 'moderate', label: 'Riesgo Moderado', icon: '🟢' },
-}
-
-const getRegionalRisk = (region) => {
-  return REGIONAL_RISK[region] || { level: 'low', label: 'Riesgo Normal', icon: '🟢' }
-}
+// Severity ranking for cluster coloring
+const SEVERITY_RANK = { minor: 0, moderate: 1, significant: 2, major: 3 }
 
 // Chilean Regions GeoJSON (simplified but realistic boundaries)
 const CHILE_REGIONS = {
@@ -157,11 +185,14 @@ const CHILE_REGIONS = {
   ]
 }
 
+// Region boundaries: neutral grey, non-interactive.
+// Red outlines read as "active fire perimeter" on a dark map — they must not.
 const regionStyle = {
-  color: '#e94560',
+  color: '#94a3b8',
   weight: 1,
-  opacity: 0.5,
-  fillOpacity: 0.05
+  opacity: 0.35,
+  fillOpacity: 0.02,
+  interactive: false
 }
 
 // ESA WorldCover WMS configuration
@@ -173,7 +204,7 @@ const VEGETATION_WMS = {
 
 // HTML-based fire icon for MarkerClusterGroup (CircleMarker can't be clustered)
 // Renders a colored circle with optional white ring for new fires
-const fireIcon = (severity, isNew, cluster) => {
+const fireIcon = (severity, isNew) => {
   const radius = getRadius(severity) * 1.5 // Scale up for divIcon visibility
   const color = getFillColor(severity)
   const ring = isNew ? 'border: 2px solid #fff; box-shadow: 0 0 4px rgba(255,255,255,0.5);' : ''
@@ -186,6 +217,28 @@ const fireIcon = (severity, isNew, cluster) => {
   })
 }
 
+// Cluster icon colored by the WORST severity inside the cluster.
+// The default library styling paints small clusters green, which collides
+// with the legend's "Menor" green and misrepresents dangerous groups.
+const clusterIcon = (cluster) => {
+  const markers = cluster.getAllChildMarkers()
+  let worst = 'minor'
+  markers.forEach(m => {
+    const sev = m.options?.severity || 'minor'
+    if ((SEVERITY_RANK[sev] ?? 0) > SEVERITY_RANK[worst]) worst = sev
+  })
+  const count = cluster.getChildCount()
+  const color = getFillColor(worst)
+  const size = count < 10 ? 34 : count < 50 ? 40 : 46
+
+  return L.divIcon({
+    html: `<div style="width:${size}px;height:${size}px;border-radius:50%;background:${color};opacity:0.85;border:2px solid rgba(255,255,255,0.6);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:${size < 40 ? 13 : 15}px;text-shadow:0 1px 2px rgba(0,0,0,0.6);">${count}</div>`,
+    iconSize: [size, size],
+    iconAnchor: [size / 2, size / 2],
+    className: 'fire-severity-cluster',
+  })
+}
+
 // Reusable popup content — written for civilians
 const FirePopupContent = ({ props, lat, lng }) => {
   const country = props.country || (props.region === 'unknown' ? 'Fuera de Chile' : 'Chile')
@@ -193,6 +246,7 @@ const FirePopupContent = ({ props, lat, lng }) => {
   const locationLabel = isChile
     ? (props.region_name || props.region || 'Chile')
     : country
+  const ageLabel = formatAge(props.timestamp)
 
   return (
     <div className="fire-popup">
@@ -214,10 +268,18 @@ const FirePopupContent = ({ props, lat, lng }) => {
           Detección fuera del territorio chileno incluida por el rectángulo satelital.
         </p>
       )}
-      <p><strong>Detectado:</strong> {formatDetectionTime(props.timestamp)} ({props.daynight === 'D' ? 'de dia' : 'de noche'})</p>
+      <p>
+        <strong>Detectado:</strong> {formatDetectionTime(props.timestamp)} ({props.daynight === 'D' ? 'de dia' : 'de noche'})
+        {ageLabel && <span className="fire-age"> · {ageLabel}</span>}
+      </p>
       {props.wind_speed > 0 && (
         <div className="fire-wind-info">
-          <p><strong>Viento:</strong> {props.wind_speed?.toFixed(0)} km/h hacia el {getWindDirectionLabel(props.wind_direction)}</p>
+          <p>
+            <strong>Viento:</strong> {props.wind_speed?.toFixed(0)} km/h desde el {getWindDirectionLabel(props.wind_direction)}
+            {props.wind_direction !== undefined && props.wind_direction !== null && (
+              <span className="fire-spread"> · el fuego se propaga hacia el {getSpreadDirectionLabel(props.wind_direction)}</span>
+            )}
+          </p>
           {props.wind_speed >= 20 && (
             <p className="fire-wind-warning">Viento fuerte - el fuego puede propagarse rapidamente</p>
           )}
@@ -232,7 +294,17 @@ const FirePopupContent = ({ props, lat, lng }) => {
   )
 }
 
-function Map({ fires, theme, showHeatmap, showClusters, showVegetation, savedPlaces }) {
+// Captures map clicks for saved-place picking
+function MapClickHandler({ onMapClick }) {
+  useMapEvents({
+    click(e) {
+      onMapClick?.(e.latlng)
+    }
+  })
+  return null
+}
+
+function Map({ fires, theme, showHeatmap, showClusters, showVegetation, savedPlaces, onMapClick, pickingPlace }) {
   const tileLayer = TILE_LAYERS[theme] || TILE_LAYERS.dark
 
   // Group fires by grid_id — one marker per unique fire
@@ -294,7 +366,8 @@ function Map({ fires, theme, showHeatmap, showClusters, showVegetation, savedPla
     return fireGroups.map(({ main }) => {
       const [lng, lat] = main.geometry.coordinates
       const props = main.properties
-      const isNew = props.detection_count <= 2
+      const isNew = isNewFire(props)
+      const opacity = getAgeOpacity(props.timestamp)
 
       return (
         <CircleMarker
@@ -302,7 +375,7 @@ function Map({ fires, theme, showHeatmap, showClusters, showVegetation, savedPla
           center={[lat, lng]}
           radius={getRadius(props.severity)}
           fillColor={getFillColor(props.severity)}
-          fillOpacity={0.85}
+          fillOpacity={opacity}
           color={isNew ? '#ffffff' : 'transparent'}
           weight={isNew ? 2 : 0}
           className={isNew ? 'new-fire-marker' : ''}
@@ -318,13 +391,17 @@ function Map({ fires, theme, showHeatmap, showClusters, showVegetation, savedPla
     return fireGroups.map(({ main }) => {
       const [lng, lat] = main.geometry.coordinates
       const props = main.properties
-      const isNew = props.detection_count <= 2
+      const isNew = isNewFire(props)
+      const location = props.region_name || props.country || 'Chile'
 
       return (
         <Marker
           key={`fire-cluster-${props.grid_id || `${lat}-${lng}-${props.timestamp}`}`}
           position={[lat, lng]}
           icon={fireIcon(props.severity, isNew)}
+          severity={props.severity}
+          opacity={getAgeOpacity(props.timestamp)}
+          title={`Incendio ${getSeverityLabel(props.severity).toLowerCase()} en ${location}`}
         >
           <Popup><FirePopupContent props={props} lat={lat} lng={lng} /></Popup>
         </Marker>
@@ -342,13 +419,19 @@ function Map({ fires, theme, showHeatmap, showClusters, showVegetation, savedPla
     <MapContainer
       center={CHILE_CENTER}
       zoom={DEFAULT_ZOOM}
+      minZoom={4}
+      maxBounds={CHILE_MAX_BOUNDS}
+      maxBoundsViscosity={0.8}
       scrollWheelZoom={true}
       style={{ height: '100%', width: '100%' }}
+      className={pickingPlace ? 'map-picking-place' : ''}
     >
       <TileLayer
         attribution={tileLayer.attribution}
         url={tileLayer.url}
       />
+
+      {onMapClick && <MapClickHandler onMapClick={onMapClick} />}
 
       {/* Vegetation layer (ESA WorldCover) */}
       {showVegetation && (
@@ -362,17 +445,10 @@ function Map({ fires, theme, showHeatmap, showClusters, showVegetation, savedPla
         />
       )}
 
-      {/* Region boundaries */}
+      {/* Region boundaries — neutral, non-interactive */}
       <GeoJSON
         data={CHILE_REGIONS}
         style={regionStyle}
-        onEachFeature={(feature, layer) => {
-          layer.bindTooltip(feature.properties.name, {
-            permanent: false,
-            direction: 'center',
-            className: 'region-tooltip'
-          })
-        }}
       />
 
       {/* Heatmap layer */}
@@ -387,6 +463,7 @@ function Map({ fires, theme, showHeatmap, showClusters, showVegetation, savedPla
           chunkedLoading
           maxClusterRadius={50}
           spiderfyOnMaxZoom
+          iconCreateFunction={clusterIcon}
         >
           {clusteredMarkers}
         </MarkerClusterGroup>

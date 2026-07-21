@@ -110,6 +110,8 @@ html, body, #root {
 .header-controls {
   display: flex;
   gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 .header-controls button {
@@ -468,6 +470,11 @@ html, body, #root {
   outline: none;
 }
 
+.time-range:focus-visible {
+  outline: 2px solid var(--accent-hover);
+  outline-offset: 4px;
+}
+
 .time-range::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
@@ -708,6 +715,26 @@ html, body, #root {
 
 .risk-banner.peak-hours {
   background: linear-gradient(90deg, #f97316, #ea580c);
+}
+
+.risk-banner.stale-data {
+  background: linear-gradient(90deg, #b91c1c, #7f1d1d);
+}
+
+.status-text.stale {
+  color: var(--warning);
+  font-weight: 600;
+}
+
+/* Detection age + spread direction inside fire popups */
+.fire-age {
+  color: var(--warning);
+  font-weight: 600;
+}
+
+.fire-spread {
+  color: var(--text-primary);
+  font-weight: 500;
 }
 
 .risk-icon {
@@ -1283,16 +1310,25 @@ html, body, #root {
     Filter Panel Styles
     ============================================================================= */
 
+/* Desktop: overlays the map instead of crushing it */
 .filter-panel {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1100;
+  max-height: 75%;
+  overflow-y: auto;
   background: var(--bg-secondary);
   border-bottom: 1px solid rgba(233, 69, 96, 0.3);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.45);
   display: flex;
   flex-direction: column;
 }
 
 .filter-panel.collapsed {
-  flex: 0 0 56px;
   max-height: 56px;
+  overflow: hidden;
 }
 
 .filter-panel.mobile {
@@ -1398,10 +1434,9 @@ html, body, #root {
   color: white;
 }
 
-/* Export button */
+/* Export buttons use the standard outline style — solid red is reserved for emergency UI */
 .export-btn {
-  background: var(--accent) !important;
-  color: white !important;
+  font-variant-numeric: tabular-nums;
 }
 
 /* =============================================================================
@@ -1486,18 +1521,35 @@ html, body, #root {
     Saved Places Panel Styles
     ============================================================================= */
 
+/* Anchored inside map-wrapper (position: relative) so it never covers the SOS rail */
 .saved-places-panel {
-  position: fixed;
-  top: 80px;
-  right: 20px;
+  position: absolute;
+  top: 10px;
+  right: 10px;
   z-index: 1200;
   background: rgba(22, 33, 62, 0.95);
   border: 1px solid rgba(59, 130, 246, 0.5);
   border-radius: 8px;
   width: 280px;
-  max-height: 400px;
+  max-height: calc(100% - 20px);
   overflow-y: auto;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+.saved-places-panel.picking {
+  border-color: rgba(74, 222, 128, 0.6);
+}
+
+.picking-hint {
+  color: var(--text-primary);
+  font-size: 0.85rem;
+  padding: 15px;
+  margin: 0;
+}
+
+/* Crosshair cursor while picking a place on the map */
+.map-picking-place {
+  cursor: crosshair;
 }
 
 .light .saved-places-panel {
@@ -1708,10 +1760,12 @@ html, body, #root {
     gap: 8px;
   }
 
+  /* Keep the live/stale badge visible on mobile — freshness matters most in the field */
   .status-badges {
-    display: none;
+    gap: 6px;
   }
 
+  /* The full status line stays desktop-only; the stale banner covers mobile */
   .status-text {
     display: none;
   }

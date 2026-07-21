@@ -51,7 +51,7 @@ function QuemasPanel({ collapsed: controlledCollapsed, onToggle }) {
               </div>
               <div className="info-table-row">
                 <strong>CONAF</strong>
-                <span>1 jul 2026</span>
+                <span>Actualizacion continua</span>
                 <span>Ver estado vigente antes de cualquier aviso</span>
               </div>
               <div className="info-table-row">

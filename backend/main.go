@@ -20,6 +20,16 @@ import (
 	"github.com/joho/godotenv"
 )
 
+// Chilean timezone for user-facing timestamps
+var chileTZ = func() *time.Location {
+	loc, err := time.LoadLocation("America/Santiago")
+	if err != nil {
+		log.Printf("Warning: could not load America/Santiago timezone, falling back to UTC: %v", err)
+		return time.UTC
+	}
+	return loc
+}()
+
 // =============================================================================
 // Thread-Safe In-Memory Cache
 // =============================================================================
@@ -242,14 +252,21 @@ func fetchFIRMSData() error {
 		sourceCounts[source.Name] = len(features)
 		allFeatures = append(allFeatures, features...)
 
-		// Check for high-FRP alerts (new fires)
+		// Check for high-FRP alerts (new fires in Chile only)
 		for _, f := range features {
+			if f.Properties.Country != "Chile" {
+				continue
+			}
 			key := GetObservationID(f.Properties.GridID, f.Properties.Satellite, f.Properties.AcqDate, f.Properties.AcqTime)
 			if !previousFeatures[key] && f.Properties.FRP >= 50 {
+				location := f.Properties.RegionName
+				if location == "" {
+					location = "Chile"
+				}
 				hub.BroadcastAlert(FireAlert{
 					Feature:   f,
 					AlertType: "high_frp",
-					Message:   fmt.Sprintf("High intensity fire detected! FRP: %.1f MW", f.Properties.FRP),
+					Message:   fmt.Sprintf("Incendio de alta intensidad detectado en %s (FRP %.0f MW)", location, f.Properties.FRP),
 				})
 			}
 		}
@@ -267,8 +284,8 @@ func fetchFIRMSData() error {
 		sources = append(sources, s)
 	}
 
-	sourceNotice := "NASA FIRMS active fire detections are satellite observations and may be delayed or include false positives."
-	officialNotice := "Matta Fire is informational and does not replace CONAF, SENAPRED, Bomberos, or local authority instructions."
+	sourceNotice := "Las detecciones de incendios activos de NASA FIRMS son observaciones satelitales y pueden estar retrasadas o incluir falsos positivos."
+	officialNotice := "Matta Fire es informativo y no reemplaza a CONAF, SENAPRED, Bomberos ni las instrucciones de las autoridades locales."
 
 	collection := FeatureCollection{
 		Type:     "FeatureCollection",
@@ -460,7 +477,7 @@ func parseRecord(record []string, colIndex map[string]int, sourceName string) (F
 			GridID:         fireRecord.GridID,
 			DetectionCount: fireRecord.DetectionCount,
 			Severity:       fireRecord.Severity,
-			FirstSeen:      fireRecord.FirstSeen.Format("15:04"),
+			FirstSeen:      fireRecord.FirstSeen.In(chileTZ).Format("02-01 15:04"),
 			Duration:       fireRecord.DurationString(),
 			MaxFRP:         fireRecord.MaxFRP,
 		},

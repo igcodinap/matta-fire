@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { isFireNearPlace, getFireAlertKey, haversineKm } from './fireUtils'
 
-function SavedPlacesPanel({ places, setPlaces, fires, onPlaceAlert }) {
+function SavedPlacesPanel({ places, setPlaces, fires, onPlaceAlert, draftCoords, pickingPlace, onStartPlacePick }) {
   const [showAdd, setShowAdd] = useState(false)
   const [newPlace, setNewPlace] = useState({
     name: '',
@@ -10,6 +10,14 @@ function SavedPlacesPanel({ places, setPlaces, fires, onPlaceAlert }) {
     radiusKm: 10,
     notify: true
   })
+
+  // Fill coordinates picked on the map
+  useEffect(() => {
+    if (draftCoords) {
+      setNewPlace(prev => ({ ...prev, lat: draftCoords.lat, lng: draftCoords.lng }))
+      setShowAdd(true)
+    }
+  }, [draftCoords])
   const [geolocationError, setGeolocationError] = useState(null)
   const [notificationMessage, setNotificationMessage] = useState(null)
   const [alertSeen, setAlertSeen] = useState(() => {
@@ -172,11 +180,22 @@ function SavedPlacesPanel({ places, setPlaces, fires, onPlaceAlert }) {
     }
   }, [fires, places, alertSeen, onPlaceAlert])
 
+  if (pickingPlace) {
+    return (
+      <div className="saved-places-panel picking">
+        <div className="saved-places-header">
+          <h3>Elegir ubicacion</h3>
+        </div>
+        <p className="picking-hint">Haz clic en el mapa para fijar la ubicacion del lugar.</p>
+      </div>
+    )
+  }
+
   return (
     <div className="saved-places-panel">
       <div className="saved-places-header">
         <h3>Lugares guardados</h3>
-        <button className="add-btn" onClick={() => setShowAdd(!showAdd)}>
+        <button className="add-btn" onClick={() => setShowAdd(!showAdd)} aria-label={showAdd ? 'Cerrar formulario' : 'Agregar lugar'}>
           {showAdd ? '✕' : '+'}
         </button>
       </div>
@@ -196,6 +215,9 @@ function SavedPlacesPanel({ places, setPlaces, fires, onPlaceAlert }) {
               placeholder="Mi casa, parcela, etc."
             />
           </div>
+          <button className="use-location-btn" onClick={onStartPlacePick}>
+            📍 Elegir en el mapa
+          </button>
           <div className="filter-group">
             <label>Latitud</label>
             <input
